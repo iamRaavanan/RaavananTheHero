@@ -1,2 +1,2 @@
 # RaavananTheHero
-Game made from scratch, licensed engines, or libraries.
+Game made from scratch witout any licensed engines, or libraries.
