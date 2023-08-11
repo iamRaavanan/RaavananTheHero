@@ -3,6 +3,7 @@
 #include <xinput.h>
 #include <dsound.h>
 #include <math.h>
+#include <stdio.h>
 
 #define PI 3.14159265359
 
@@ -353,6 +354,10 @@ static void Win32SoundBuffer (Win32_Sound_Output *SoundOutput, DWORD BytesToLock
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, int nCmdShow)
 {
+	LARGE_INTEGER PerformanceCounterFreqResult;
+	QueryPerformanceFrequency(&PerformanceCounterFreqResult);
+	int64 PerfCountFrequency = PerformanceCounterFreqResult.QuadPart;
+	uint64 LastCycleCount = __rdtsc();
 	Win32LoadXInput();
 	WNDCLASSA WindowClass = {};
 	//win32_window_dimension dimension = GetWindowDimension(hwnd);
@@ -387,7 +392,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 			Win32SoundBuffer(&SoundOutput, 0, SoundOutput.LatencySampleCount * SoundOutput.BytesPerSample);
 			GlobalSecondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
 			
-			
+			LARGE_INTEGER LastCounter;
+			QueryPerformanceCounter(&LastCounter);
 			while(bIsRunning)
 			{				
 				while(PeekMessage(&Message, 0,0,0, PM_REMOVE))	
@@ -457,6 +463,21 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 				win32_window_dimension dimension = GetWindowDimension(WindowHandle);
 				Win32UpdateBufferInWindow (&backBuffer, DeviceContext, dimension.Width, dimension.Height);
 				ReleaseDC(WindowHandle, DeviceContext);
+
+				uint64 EndCycleCount = __rdtsc();
+				uint64 CyclesElapsed = EndCycleCount - LastCycleCount;
+				float MegaCyclePerFrame = (float)((float)CyclesElapsed/(1000.0f * 1000.0f));
+
+				LARGE_INTEGER EndCounter;
+				QueryPerformanceCounter(&EndCounter);
+				int64 CounterElapsed = EndCounter.QuadPart - LastCounter.QuadPart;
+				float MSPerFrame = (float)((1000.0f * (float)CounterElapsed)/(float)PerfCountFrequency);
+				float FPS = (float)PerfCountFrequency/(float)CounterElapsed;
+				char Buffer[256];
+				sprintf(Buffer, "%0.2f_ms, %0.2f_fps %0.2f_mc/f\n", MSPerFrame, FPS, MegaCyclePerFrame);
+				OutputDebugStringA(Buffer);
+				LastCounter = EndCounter;
+				LastCycleCount = EndCycleCount;
 			}
 		}
 	}
