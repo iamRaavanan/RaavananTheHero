@@ -1,5 +1,20 @@
 #include "Raavanan.h"
 
+static void UpdateSound(game_sound_buffer *SoundBuffer, int ToneHz)
+{
+	static float tSine;
+	int16 ToneVolume = 3000;
+	int WavePeriod = SoundBuffer->SamplesPerSecond/ToneHz;
+	int16 *SampleOut = SoundBuffer->Samples;
+	for(int SampleIndex = 0; SampleIndex < SoundBuffer->SampleCount; ++SampleIndex)
+	{		
+		float SineVal = sinf(tSine);
+		int16 Samplevalue = (int16)(SineVal * ToneVolume);
+		*SampleOut++ = Samplevalue;
+		*SampleOut++ = Samplevalue;
+		tSine += 2.0f *  PI * (float)1.0f/(float)WavePeriod;
+	}
+}
 
 static void RenderGradiant(game_offscreen_buffer *Buffer, int xOffset, int yOffset)
 {
@@ -25,7 +40,8 @@ static void RenderGradiant(game_offscreen_buffer *Buffer, int xOffset, int yOffs
 	}
 }
 
-static void GameUpdateAndRender (game_offscreen_buffer *Buffer, int xOffset, int yOffset)
+static void GameUpdateAndRender (game_offscreen_buffer *Buffer, int xOffset, int yOffset, game_sound_buffer *SoundBuffer, int ToneHz)
 {
+	UpdateSound(SoundBuffer, ToneHz);
     RenderGradiant(Buffer, xOffset, yOffset);
 }
