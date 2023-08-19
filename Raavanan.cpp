@@ -40,8 +40,28 @@ static void RenderGradiant(game_offscreen_buffer *Buffer, int xOffset, int yOffs
 	}
 }
 
-static void GameUpdateAndRender (game_offscreen_buffer *Buffer, int xOffset, int yOffset, game_sound_buffer *SoundBuffer, int ToneHz)
+static void GameUpdateAndRender (game_input *Input, game_offscreen_buffer *Buffer, game_sound_buffer *SoundBuffer)
 {
+	static int xOffset = 0;
+	static int yOffset = 0;
+	static int ToneHz = 256;
+
+	game_controller_input *Input0 = &Input->Controllers[0];
+	if(Input0->IsAnalog)
+	{
+		ToneHz = 256 + (int)(128.0f * (Input0->EndY));
+		yOffset += (int)4.0f * (Input0->EndX);
+	}
+	else
+	{
+
+	}
+	
+	if(Input0->Down.EndedDown)
+	{
+		xOffset += 1;
+	}
+
 	UpdateSound(SoundBuffer, ToneHz);
     RenderGradiant(Buffer, xOffset, yOffset);
 }
