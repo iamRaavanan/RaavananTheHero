@@ -158,7 +158,6 @@ static void Win32IntDirectSound (HWND Window, int32 SamplesPerSecond, int32 Buff
 				LPDIRECTSOUNDBUFFER PrimaryBuffer;
 				if(SUCCEEDED (DirectSound->CreateSoundBuffer(&BufferDesc, &PrimaryBuffer, 0)))
 				{				
-					HRESULT Err = PrimaryBuffer->SetFormat (&WaveFormat);
 					if(SUCCEEDED (PrimaryBuffer->SetFormat (&WaveFormat)))
 					{
 						OutputDebugStringA("Primary Buffer format was set \n");
@@ -241,7 +240,7 @@ void Win32UpdateBufferInWindow (win32_offscreen_buffer *Buffer, HDC DeviceContex
 					DIB_RGB_COLORS, SRCCOPY);
 }
 
-LRESULT Win32Wndproc (HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+static LRESULT CALLBACK Win32Wndproc (HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	LRESULT Result = 0;
 	switch (uMsg)
@@ -270,7 +269,8 @@ LRESULT Win32Wndproc (HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		case WM_KEYDOWN:
 		case WM_KEYUP:
 		{
-			int32 VKCode = wParam;
+			Assert(!"Keyboard events from non-dispatch events are restricted!");
+			uint32 VKCode = (uint32)wParam;
 			bool KeyWasDown = ((lParam & (1 << 30)) != 0);	// Check the key used to be down 
 			bool KeyIsDown = ((lParam & (1 << 31)) == 0);	// Check the key is currently down
 			if(KeyIsDown != KeyWasDown) 
@@ -319,12 +319,7 @@ LRESULT Win32Wndproc (HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		case WM_PAINT:
 		{
 			PAINTSTRUCT paint;
-			HDC DeviceContext = BeginPaint(hwnd, &paint);
-			int x = paint.rcPaint.left;
-			int y = paint.rcPaint.top;
-			int width = paint.rcPaint.right - paint.rcPaint.left;
-			int height = paint.rcPaint.bottom - paint.rcPaint.top;
-			
+			HDC DeviceContext = BeginPaint(hwnd, &paint);	
 			win32_window_dimension dimension = GetWindowDimension(hwnd);
 			Win32UpdateBufferInWindow (&backBuffer, DeviceContext, dimension.Width, dimension.Height);
 			EndPaint(hwnd, &paint);
@@ -387,6 +382,12 @@ static void Win32SoundBuffer (Win32_Sound_Output *SoundOutput, DWORD BytesToLock
 	}
 }
 
+static void Win32ProcessKeyboardMessage (game_button_state *KeybaordState, bool IsDown)
+{
+	KeybaordState->EndedDown = IsDown;
+	++KeybaordState->HalfTransitionCount;
+}
+
 static void Win32ProcessXInputDigitalButton (DWORD XInputButtonState,
 											game_button_state *OldState, 
 											DWORD ButtonBit, 
@@ -419,10 +420,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 			HDC DeviceContext = GetDC(WindowHandle);
 			MSG Message;
 
-			bIsRunning = true;
-			int xOffset = 0;
-			int yOffset = 0;
-
+			bIsRunning = true;			
 			Win32_Sound_Output SoundOutput = {};
 			SoundOutput.SamplesPerSecond = 48000;
 			SoundOutput.CurrentSampleIndex = 0;
@@ -442,10 +440,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 #endif
 			game_memory GameMemory = {};
 			GameMemory.PermanentStorageSize = Megabytes(64);
-			GameMemory.TransientStorageSize = Gigabytes(4);
+			GameMemory.TransientStorageSize = Gigabytes(1);
 			uint64 TotalSize = GameMemory.PermanentStorageSize + GameMemory.TransientStorageSize;
 
-			GameMemory.PermanentStorage = VirtualAlloc(BaseAddress, TotalSize, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+			GameMemory.PermanentStorage = VirtualAlloc(BaseAddress, (size_t)TotalSize, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
 			GameMemory.TransientStorage = ((uint8 *)GameMemory.PermanentStorage + GameMemory.PermanentStorageSize);
 
 			if(Samples && GameMemory.PermanentStorage && GameMemory.PermanentStorage)
@@ -456,6 +454,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 
 				LARGE_INTEGER LastCounter;
 				QueryPerformanceCounter(&LastCounter);
+
+				game_controller_input *KeyboardController = &NewInput->Controllers[0];
+				game_controller_input ZeroController = {};
+				*KeyboardController = ZeroController;
+
 				while(bIsRunning)
 				{
 					while(PeekMessage(&Message, 0,0,0, PM_REMOVE))	
@@ -464,11 +467,60 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 						{
 							bIsRunning = false;
 						}
-						TranslateMessage(&Message);
-						DispatchMessage(&Message);
+						switch (Message.message)
+						{
+							case WM_SYSKEYDOWN:
+							case WM_SYSKEYUP:
+							case WM_KEYDOWN:
+							case WM_KEYUP:
+							{
+								uint32 VKCode = (uint32)Message.wParam;
+								bool KeyWasDown = ((Message.lParam & (1 << 30)) != 0);	// Check the key used to be down 
+								bool KeyIsDown = ((Message.lParam & (1 << 31)) == 0);	// Check the key is currently down
+								if(KeyIsDown != KeyWasDown) 
+								{
+									if(VKCode == VK_UP || VKCode == 'W')
+									{
+										Win32ProcessKeyboardMessage (&KeyboardController->Up, KeyIsDown);
+									} else if(VKCode == VK_DOWN || VKCode == 'S')
+									{
+										Win32ProcessKeyboardMessage (&KeyboardController->Down, KeyIsDown);
+									} else if(VKCode == VK_LEFT || VKCode == 'A')
+									{
+										Win32ProcessKeyboardMessage (&KeyboardController->Left, KeyIsDown);
+									} else if(VKCode == VK_RIGHT || VKCode == 'D')
+									{
+										Win32ProcessKeyboardMessage (&KeyboardController->Right, KeyIsDown);
+									} else if(VKCode == 'Q')
+									{
+										OutputDebugStringA("Q pressed\n");
+									} else if(VKCode == 'E')
+									{
+										OutputDebugStringA("E pressed\n");
+									}
+									else if(VKCode == VK_ESCAPE)
+									{
+										bIsRunning = false;
+									}
+									else if(VKCode == VK_SPACE)
+									{
+										OutputDebugStringA("Space pressed\n");
+									}
+								}
+								bool AltDown = ((Message.lParam & (1 << 29)) != 0);
+								if(VKCode == VK_F4 && AltDown) {
+									bIsRunning = false;
+								}
+							} break;
+							default:
+							{		
+								TranslateMessage(&Message);
+								DispatchMessage(&Message);
+							} break;
+						}
 					}
 					
-					int MaxControllerCount = XUSER_MAX_COUNT;
+					DWORD MaxControllerCount = XUSER_MAX_COUNT;
 					if(MaxControllerCount > ArrayCount(NewInput->Controllers))
 					{
 						MaxControllerCount = ArrayCount(NewInput->Controllers);
@@ -569,7 +621,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 					float MSPerFrame = (float)((1000.0f * (float)CounterElapsed)/(float)PerfCountFrequency);
 					float FPS = (float)PerfCountFrequency/(float)CounterElapsed;
 					char Buffer[256];
-					sprintf(Buffer, "%0.2f_ms, %0.2f_fps %0.2f_mc/f\n", MSPerFrame, FPS, MegaCyclePerFrame);
+					printf(Buffer, "%0.2f_ms, %0.2f_fps %0.2f_mc/f\n", MSPerFrame, FPS, MegaCyclePerFrame);
 					OutputDebugStringA(Buffer);
 					LastCounter = EndCounter;
 					LastCycleCount = EndCycleCount;
