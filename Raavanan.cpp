@@ -55,22 +55,30 @@ static void GameUpdateAndRender (game_memory *Memory, game_input *Input, game_of
 		GameState->ToneHz = 256;
 		Memory->IsInitialized = true;
 	}
-	game_controller_input *Input0 = &Input->Controllers[0];
-	if(Input0->IsAnalog)
+	for(int ControllerIndex = 0; ControllerIndex < ArrayCount(Input->Controllers); ControllerIndex++)
 	{
-		GameState->ToneHz = 256 + (int)(128.0f * (Input0->EndY));
-		GameState->YOffset += (int)(4.0f * (Input0->EndX));
-	}
-	else
-	{
-
-	}
-	
-	if(Input0->Down.EndedDown)
-	{
-		GameState->XOffset += 1;
-	}
-
+		game_controller_input *Controller = GetController(Input, ControllerIndex);
+		if(Controller->IsAnalog)
+		{
+			GameState->ToneHz = 256 + (int)(128.0f * (Controller->StickAverageY));
+			GameState->YOffset += (int)(4.0f * (Controller->StickAverageX));
+		}
+		else
+		{
+			if(Controller->MoveDown.EndedDown)
+			{
+				GameState->YOffset -= 1;
+			}
+			if(Controller->MoveUp.EndedDown)
+			{
+				GameState->YOffset += 1;
+			}
+		}
+		if(Controller->ActionDown.EndedDown)
+		{
+			GameState->XOffset += 1;
+		}
+	}	
 	UpdateSound(SoundBuffer, GameState->ToneHz);
     RenderGradiant(Buffer, GameState->XOffset, GameState->YOffset);
 }
