@@ -1,5 +1,4 @@
 #ifndef WIN32_RAAVANANTHEHERO
-#define WIN32_RAAVANANTHEHERO
 #include <windows.h>
 
 struct win32_offscreen_buffer
@@ -23,9 +22,15 @@ struct Win32_Sound_Output
 	int SamplesPerSecond;
 	uint32 CurrentSampleIndex;
 	int BytesPerSample;
-	int SecondaryBufferSize;
+	DWORD SecondaryBufferSize;
 	float tSine;
 	int LatencySampleCount;
 };
 
+struct Win32_debug_time_marker
+{
+	DWORD PlayCursor;
+	DWORD WriteCursor;
+};
+#define WIN32_RAAVANANTHEHERO
 #endif
