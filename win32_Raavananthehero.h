@@ -23,14 +23,22 @@ struct Win32_Sound_Output
 	uint32 CurrentSampleIndex;
 	int BytesPerSample;
 	DWORD SecondaryBufferSize;
+	DWORD SafetyBytes;
 	float tSine;
 	int LatencySampleCount;
 };
 
 struct Win32_debug_time_marker
 {
-	DWORD PlayCursor;
-	DWORD WriteCursor;
+	DWORD OutputPlayCursor;
+	DWORD OutputWriteCursor;
+	
+	DWORD OutputLocation;	// Output byte to lock
+	DWORD OutputByteCount;
+
+	DWORD ExpectedFlipPlayCursor;
+	DWORD FlipPlayCursor;
+	DWORD FlipWriteCursor;
 };
 #define WIN32_RAAVANANTHEHERO
 #endif

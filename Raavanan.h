@@ -108,7 +108,8 @@ struct game_state
 };
 
 static void UpdateSound(game_sound_buffer *SoundBuffer);
-static void GameUpdateAndRender(game_memory *Memory, game_input *Input, game_offscreen_buffer *Buffer, game_sound_buffer *SoundBuffer);
+static void GameUpdateAndRender(game_memory *Memory, game_input *Input, game_offscreen_buffer *Buffer);
+static void GetGameSoundSamples(game_memory *Memory, game_sound_buffer *SoundBuffer);
 
 #define RAAVANAN_H
 #endif
