@@ -1,4 +1,18 @@
 #ifndef RAAVANAN_H
+#include <math.h>
+#include <stdint.h>
+
+#define PI 3.14159265359
+
+typedef int8_t int8;
+typedef int16_t int16;
+typedef int32_t int32;
+typedef int64_t int64;
+
+typedef uint8_t uint8;
+typedef uint16_t uint16;
+typedef uint32_t uint32;
+typedef uint64_t uint64;
 
 #define Assert(Expression) if(!(Expression)) { *(int *) 0 = 0;}
 
@@ -9,7 +23,7 @@
 
 #define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
 
-static uint32 SafeTruncateUInt64(uint64 value)
+uint32 SafeTruncateUInt64(uint64 value)
 {
 	Assert(value <= 0xFFFFFFFF);
 	uint32 Result = (uint32)value;
@@ -22,9 +36,9 @@ struct debug_read_file_result
 	uint32 ContentSize;
 	void *Content;
 };
-static debug_read_file_result DEBUGReadEntireFile(char *Filename);
-static void DEBUGFreeFileMemory(void *Memory);
-static bool DEBUGWriteEntireFile(char *Filename, uint32 Memorysize, void *Memory);
+debug_read_file_result DEBUGReadEntireFile(char *Filename);
+void DEBUGFreeFileMemory(void *Memory);
+bool DEBUGWriteEntireFile(char *Filename, uint32 Memorysize, void *Memory);
 #else
 #endif
 
@@ -108,8 +122,18 @@ struct game_state
 };
 
 static void UpdateSound(game_sound_buffer *SoundBuffer);
-static void GameUpdateAndRender(game_memory *Memory, game_input *Input, game_offscreen_buffer *Buffer);
-static void GetGameSoundSamples(game_memory *Memory, game_sound_buffer *SoundBuffer);
+
+#define GAME_UPDATE_AND_RENDER(name) void name(game_memory *Memory, game_input *Input, game_offscreen_buffer *Buffer)
+typedef GAME_UPDATE_AND_RENDER(game_update_and_Render);
+GAME_UPDATE_AND_RENDER(GameUpdateAndRenderStub)
+{
+}
+
+#define GET_GAME_SOUND_SAMPLES(name) void name(game_memory *Memory, game_sound_buffer *SoundBuffer)
+typedef GET_GAME_SOUND_SAMPLES(get_game_sound_samples);
+GET_GAME_SOUND_SAMPLES(GetGameSoundSamplesStub)
+{
+}
 
 #define RAAVANAN_H
 #endif

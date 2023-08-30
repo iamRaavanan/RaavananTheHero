@@ -1,21 +1,6 @@
-#include <stdint.h>
 
-#define PI 3.14159265359
-
-typedef int8_t int8;
-typedef int16_t int16;
-typedef int32_t int32;
-typedef int64_t int64;
-
-typedef uint8_t uint8;
-typedef uint16_t uint16;
-typedef uint32_t uint32;
-typedef uint64_t uint64;
-
-// #include <windows.h>
-#include <math.h>
+#include "Raavanan.h"
 #include "win32_Raavananthehero.h"
-#include "Raavanan.cpp"
 #include <xinput.h>
 #include <dsound.h>
 #include <stdio.h>
@@ -42,6 +27,33 @@ X_INPUT_SET_STATE(XInputSetStateStub)
 static X_InputSetState *XInputSetState_ = XInputSetStateStub;
 #define XInputSetState XInputSetState_;
 
+struct Win32_game_code
+{
+	bool bIsValid;
+	HMODULE GameCodeDLL;
+	game_update_and_Render *UpdateAndRender;
+	get_game_sound_samples *GetSoundSamples;
+};
+
+static Win32_game_code Win32LoadGameCode ()
+{
+	Win32_game_code Result = {};
+	Result.GameCodeDLL = LoadLibraryA("Raavanan.dll");
+	if(Result.GameCodeDLL)
+	{
+		Result.UpdateAndRender = (game_update_and_Render *)GetProcAddress(Result.GameCodeDLL, "GameUpdateAndRender");
+		Result.GetSoundSamples = (get_game_sound_samples *)GetProcAddress(Result.GameCodeDLL, "GetGameSoundSamples");
+		Result.bIsValid = (Result.UpdateAndRender && Result.GetSoundSamples);
+	}
+	
+	if(!Result.bIsValid)
+	{
+		Result.UpdateAndRender = GameUpdateAndRenderStub;
+		Result.GetSoundSamples = GetGameSoundSamplesStub;
+	}
+	return Result;
+}
+
 static void Win32LoadXInput(void)
 {
 	HMODULE XInputLibrary = LoadLibraryA("xinput1_4.dll");
@@ -67,7 +79,7 @@ static LPDIRECTSOUNDBUFFER GlobalSecondaryBuffer;
 typedef DIRECT_SOUND_CREATE(direct_sound_create);
 
 #if RAAVANAN_INTERNAL
-static debug_read_file_result DEBUGReadEntireFile(char *Filename)
+debug_read_file_result DEBUGReadEntireFile(char *Filename)
 {
 	debug_read_file_result Result = {};
 	HANDLE FileHandle = CreateFileA(Filename, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
@@ -103,7 +115,7 @@ static debug_read_file_result DEBUGReadEntireFile(char *Filename)
 }
 #endif
 
-static void DEBUGFreeFileMemory(void *Memory)
+void DEBUGFreeFileMemory(void *Memory)
 {
 	if(Memory)
 	{
@@ -111,7 +123,7 @@ static void DEBUGFreeFileMemory(void *Memory)
 	}
 }
 
-static bool DEBUGWriteEntireFile(char *Filename, uint32 Memorysize, void *Memory)
+bool DEBUGWriteEntireFile(char *Filename, uint32 Memorysize, void *Memory)
 {
 	bool Result = false;
 	HANDLE FileHandle = CreateFileA(Filename, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
@@ -545,6 +557,7 @@ static void Win32DebugSyncDisplay(win32_offscreen_buffer *Buffer, int MarkerCoun
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, int nCmdShow)
 {
+	Win32_game_code Game = Win32LoadGameCode();
 	LARGE_INTEGER PerformanceCounterFreqResult;
 	QueryPerformanceFrequency(&PerformanceCounterFreqResult);
 	PerfCountFrequency = PerformanceCounterFreqResult.QuadPart;	
@@ -713,7 +726,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 						GBuffer.Width = backBuffer.Width;
 						GBuffer.Height = backBuffer.Height;
 						GBuffer.Pitch = backBuffer.Pitch;						
-						GameUpdateAndRender(&GameMemory, NewInput, &GBuffer);
+						Game.UpdateAndRender(&GameMemory, NewInput, &GBuffer);
 						
 						LARGE_INTEGER AudioWallClock = Win32GetWallClock();
 						float FromBeginToAudioSeconds = Win32GetSecondsElapsed(FlipWallClock, AudioWallClock);
@@ -769,7 +782,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 							SoundBuffer.SamplesPerSecond = SoundOutput.SamplesPerSecond;
 							SoundBuffer.Samples = Samples;
 							SoundBuffer.SampleCount = BytesToWrite/SoundOutput.BytesPerSample;
-							GetGameSoundSamples (&GameMemory, &SoundBuffer);
+							Game.GetSoundSamples (&GameMemory, &SoundBuffer);
 	#if RAAVANAN_INTERNAL
 							Win32_debug_time_marker *Marker = &DebugTimeMarkers[DebugTimeMarkerIndex];
 							Marker->OutputPlayCursor = PlayCursor;

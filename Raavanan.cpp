@@ -41,7 +41,7 @@ static void RenderGradiant(game_offscreen_buffer *Buffer, int xOffset, int yOffs
 	}
 }
 
-static void GameUpdateAndRender (game_memory *Memory, game_input *Input, game_offscreen_buffer *Buffer)
+GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
 	Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
 	game_state *GameState = (game_state *)Memory->PermanentStorage;
@@ -87,7 +87,7 @@ static void GameUpdateAndRender (game_memory *Memory, game_input *Input, game_of
     RenderGradiant(Buffer, GameState->XOffset, GameState->YOffset);
 }
 
-static void GetGameSoundSamples(game_memory *Memory, game_sound_buffer *SoundBuffer)
+GET_GAME_SOUND_SAMPLES(GetGameSoundSamples)
 {
 	game_state *GameState = (game_state *)Memory->PermanentStorage;
 	UpdateSound(SoundBuffer, GameState->ToneHz);
