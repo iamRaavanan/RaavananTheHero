@@ -38,7 +38,7 @@ struct Win32_game_code
 static Win32_game_code Win32LoadGameCode ()
 {
 	Win32_game_code Result = {};
-	CopyFileA("Raavanan.exe", "Raavanan_temp.dll", FALSE);
+	CopyFileA("Raavanan.dll", "Raavanan_temp.dll", FALSE);
 	Result.GameCodeDLL = LoadLibraryA("Raavanan_temp.dll");
 	if(Result.GameCodeDLL)
 	{
