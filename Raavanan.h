@@ -36,9 +36,16 @@ struct debug_read_file_result
 	uint32 ContentSize;
 	void *Content;
 };
-debug_read_file_result DEBUGReadEntireFile(char *Filename);
-void DEBUGFreeFileMemory(void *Memory);
-bool DEBUGWriteEntireFile(char *Filename, uint32 Memorysize, void *Memory);
+
+#define DEBUG_READ_ENTIRE_FILE(name) debug_read_file_result name(char *Filename)
+typedef DEBUG_READ_ENTIRE_FILE(debug_read_entire_file);
+
+#define DEBUG_FREE_FILE_MEMORY(name) void name(void *Memory)
+typedef DEBUG_FREE_FILE_MEMORY(debug_free_file_memory);
+
+#define DEBUG_WRITE_ENTIRE_FILE(name) bool name (char *Filename, uint32 Memorysize, void *Memory)
+typedef DEBUG_WRITE_ENTIRE_FILE(debug_write_entire_file);
+
 #else
 #endif
 
@@ -112,6 +119,11 @@ struct game_memory
 	void *PermanentStorage;
 	uint64 TransientStorageSize;
 	void *TransientStorage;
+#if RAAVANAN_INTERNAL
+	debug_read_entire_file *DEBUGReadEntireFile;
+	debug_free_file_memory *DEBUGFreeFileMemory;
+	debug_write_entire_file *DEBUGWriteEntireFile;
+#endif
 };
 
 struct game_state
@@ -119,9 +131,11 @@ struct game_state
 	int ToneHz;
 	int XOffset;
 	int YOffset;
+
+	float tSine;
 };
 
-static void UpdateSound(game_sound_buffer *SoundBuffer);
+static void UpdateSound(game_state *GameState, game_sound_buffer *SoundBuffer);
 
 #define GAME_UPDATE_AND_RENDER(name) void name(game_memory *Memory, game_input *Input, game_offscreen_buffer *Buffer)
 typedef GAME_UPDATE_AND_RENDER(game_update_and_Render);

@@ -1,21 +1,21 @@
 #include "Raavanan.h"
 
-static void UpdateSound(game_sound_buffer *SoundBuffer, int ToneHz)
+static void UpdateSound(game_state *GameState, game_sound_buffer *SoundBuffer, int ToneHz)
 {
-	static float tSine;
 	int16 ToneVolume = 3000;
 	int WavePeriod = SoundBuffer->SamplesPerSecond/ToneHz;
 	int16 *SampleOut = SoundBuffer->Samples;
+	
 	for(int SampleIndex = 0; SampleIndex < SoundBuffer->SampleCount; ++SampleIndex)
 	{		
-		float SineVal = sinf(tSine);
+		float SineVal = sinf(GameState->tSine);
 		int16 Samplevalue = (int16)(SineVal * ToneVolume);
 		*SampleOut++ = Samplevalue;
 		*SampleOut++ = Samplevalue;
-		tSine += (float)(2.0f *  PI * (float)1.0f/(float)WavePeriod);
-		if(tSine > (2.0f *  PI))
+		GameState->tSine += (float)(2.0f *  PI * (float)1.0f/(float)WavePeriod);
+		if(GameState->tSine > (2.0f *  PI))
 		{
-			tSine -= (float)(2.0f *  PI);
+			GameState->tSine -= (float)(2.0f *  PI);
 		}
 	}
 }
@@ -41,7 +41,7 @@ static void RenderGradiant(game_offscreen_buffer *Buffer, int xOffset, int yOffs
 	}
 }
 
-GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
+extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
 	Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
 	game_state *GameState = (game_state *)Memory->PermanentStorage;
@@ -49,14 +49,15 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 	{
 #if RAAVANAN_INTERNAL
 		char *Filename = __FILE__;
-		debug_read_file_result File = DEBUGReadEntireFile(Filename);
+		debug_read_file_result File = Memory->DEBUGReadEntireFile(Filename);
 		if(File.Content)
 		{
-			DEBUGWriteEntireFile("test.out", File.ContentSize, File.Content);
-			DEBUGFreeFileMemory(File.Content);
+			Memory->DEBUGWriteEntireFile("test.out", File.ContentSize, File.Content);
+			Memory->DEBUGFreeFileMemory(File.Content);
 		}
 #endif
 		GameState->ToneHz = 256;
+		GameState->tSine = 0.0f;
 		Memory->IsInitialized = true;
 	}
 	for(int ControllerIndex = 0; ControllerIndex < ArrayCount(Input->Controllers); ControllerIndex++)
@@ -87,8 +88,19 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     RenderGradiant(Buffer, GameState->XOffset, GameState->YOffset);
 }
 
-GET_GAME_SOUND_SAMPLES(GetGameSoundSamples)
+extern "C" GET_GAME_SOUND_SAMPLES(GetGameSoundSamples)
 {
 	game_state *GameState = (game_state *)Memory->PermanentStorage;
-	UpdateSound(SoundBuffer, GameState->ToneHz);
+	UpdateSound(GameState, SoundBuffer, GameState->ToneHz);
 }
+
+#if RAAVANAN_WIN32
+#include "windows.h"
+BOOL WINAPI DllMain(
+    HINSTANCE hinstDLL,  // handle to DLL module
+    DWORD fdwReason,     // reason for calling function
+    LPVOID lpvReserved ) 
+{
+	return true;
+}
+#endif

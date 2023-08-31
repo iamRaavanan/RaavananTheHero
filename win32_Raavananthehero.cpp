@@ -38,7 +38,8 @@ struct Win32_game_code
 static Win32_game_code Win32LoadGameCode ()
 {
 	Win32_game_code Result = {};
-	Result.GameCodeDLL = LoadLibraryA("Raavanan.dll");
+	CopyFileA("Raavanan.exe", "Raavanan_temp.dll", FALSE);
+	Result.GameCodeDLL = LoadLibraryA("Raavanan_temp.dll");
 	if(Result.GameCodeDLL)
 	{
 		Result.UpdateAndRender = (game_update_and_Render *)GetProcAddress(Result.GameCodeDLL, "GameUpdateAndRender");
@@ -52,6 +53,17 @@ static Win32_game_code Win32LoadGameCode ()
 		Result.GetSoundSamples = GetGameSoundSamplesStub;
 	}
 	return Result;
+}
+
+static void Win32UnLoadGameCode (Win32_game_code *GameCode)
+{
+	if(GameCode->GameCodeDLL)
+	{
+		FreeLibrary(GameCode->GameCodeDLL);
+	}
+	GameCode->bIsValid = false;
+	GameCode->GetSoundSamples = GetGameSoundSamplesStub;
+	GameCode->UpdateAndRender = GameUpdateAndRenderStub;
 }
 
 static void Win32LoadXInput(void)
@@ -79,7 +91,15 @@ static LPDIRECTSOUNDBUFFER GlobalSecondaryBuffer;
 typedef DIRECT_SOUND_CREATE(direct_sound_create);
 
 #if RAAVANAN_INTERNAL
-debug_read_file_result DEBUGReadEntireFile(char *Filename)
+DEBUG_FREE_FILE_MEMORY (DEBUGFreeFileMemory)
+{
+	if(Memory)
+	{
+		VirtualFree(Memory, 0, MEM_RELEASE);
+	}
+}
+
+DEBUG_READ_ENTIRE_FILE(DEBUGReadEntireFile)
 {
 	debug_read_file_result Result = {};
 	HANDLE FileHandle = CreateFileA(Filename, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
@@ -113,17 +133,8 @@ debug_read_file_result DEBUGReadEntireFile(char *Filename)
 	}
 	return Result;
 }
-#endif
 
-void DEBUGFreeFileMemory(void *Memory)
-{
-	if(Memory)
-	{
-		VirtualFree(Memory, 0, MEM_RELEASE);
-	}
-}
-
-bool DEBUGWriteEntireFile(char *Filename, uint32 Memorysize, void *Memory)
+DEBUG_WRITE_ENTIRE_FILE (DEBUGWriteEntireFile)
 {
 	bool Result = false;
 	HANDLE FileHandle = CreateFileA(Filename, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
@@ -146,6 +157,8 @@ bool DEBUGWriteEntireFile(char *Filename, uint32 Memorysize, void *Memory)
 	}
 	return Result;
 }
+
+#endif
 
 static void Win32InitDirectSound (HWND Window, int32 SamplesPerSecond, int32 BufferSize)
 {
@@ -516,6 +529,7 @@ inline void Win32DrawSoundBufferMarker (win32_offscreen_buffer *Buffer, Win32_So
 	Win32DebugDrawVerticalLine(Buffer, X, Top, Bottom, Color);
 }
 
+#if RAAVANAN_INTERNAL
 static void Win32DebugSyncDisplay(win32_offscreen_buffer *Buffer, int MarkerCount, Win32_debug_time_marker *Markers, int CurrentMarkerIndex, Win32_Sound_Output *SoundOutput, float TargetSecondsPerFrame)
 {
 	int PadX = 16;
@@ -554,10 +568,10 @@ static void Win32DebugSyncDisplay(win32_offscreen_buffer *Buffer, int MarkerCoun
 		Win32DrawSoundBufferMarker (Buffer, SoundOutput, C, PadX, Top, Bottom, ThisMarker->FlipWriteCursor, WriteColor);
 	}
 }
+#endif
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, int nCmdShow)
-{
-	Win32_game_code Game = Win32LoadGameCode();
+{	
 	LARGE_INTEGER PerformanceCounterFreqResult;
 	QueryPerformanceFrequency(&PerformanceCounterFreqResult);
 	PerfCountFrequency = PerformanceCounterFreqResult.QuadPart;	
@@ -623,7 +637,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 
 			GameMemory.PermanentStorage = VirtualAlloc(BaseAddress, (size_t)TotalSize, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
 			GameMemory.TransientStorage = ((uint8 *)GameMemory.PermanentStorage + GameMemory.PermanentStorageSize);
-			
+#if RAAVANAN_INTERNAL		
+			GameMemory.DEBUGReadEntireFile = DEBUGReadEntireFile;
+			GameMemory.DEBUGFreeFileMemory = DEBUGFreeFileMemory;
+			GameMemory.DEBUGWriteEntireFile = DEBUGWriteEntireFile;			
+#endif
 			DWORD AudioLatencyBytes = 0;
 			float AudioLatencySeconds = 0;
 			bool bIsSoundValid = false;
@@ -639,9 +657,17 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 				int DebugTimeMarkerIndex = 0;
 				Win32_debug_time_marker DebugTimeMarkers[GameUpdateHz/2] = {0};
 				
+				Win32_game_code Game = Win32LoadGameCode();
+				uint32 LoadCounter = 120;
 				uint64 LastCycleCount = __rdtsc();
 				while(bIsRunning)
 				{
+					if(LoadCounter++ > 120)
+					{
+						Win32UnLoadGameCode(&Game);
+						Game = Win32LoadGameCode();
+						LoadCounter = 0;
+					}
 					game_controller_input *OldKeyboardController = GetController(OldInput, 0);
 					game_controller_input *NewKeyboardController = GetController(NewInput, 0);
 					*NewKeyboardController = {};
