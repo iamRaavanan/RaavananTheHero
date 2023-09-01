@@ -93,14 +93,3 @@ extern "C" GET_GAME_SOUND_SAMPLES(GetGameSoundSamples)
 	game_state *GameState = (game_state *)Memory->PermanentStorage;
 	UpdateSound(GameState, SoundBuffer, GameState->ToneHz);
 }
-
-#if RAAVANAN_WIN32
-#include "windows.h"
-BOOL WINAPI DllMain(
-    HINSTANCE hinstDLL,  // handle to DLL module
-    DWORD fdwReason,     // reason for calling function
-    LPVOID lpvReserved ) 
-{
-	return true;
-}
-#endif
