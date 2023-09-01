@@ -31,15 +31,31 @@ struct Win32_game_code
 {
 	bool bIsValid;
 	HMODULE GameCodeDLL;
+	FILETIME DllLastWriteTime;
 	game_update_and_Render *UpdateAndRender;
 	get_game_sound_samples *GetSoundSamples;
 };
 
-static Win32_game_code Win32LoadGameCode ()
+inline FILETIME Win32GetLastWriteTime(char *Filename)
+{
+	FILETIME LastWriteTime = {};
+	WIN32_FIND_DATA FindData;
+	HANDLE FindHandle = FindFirstFileA(Filename, &FindData);
+	if(FindHandle != INVALID_HANDLE_VALUE)
+	{
+		LastWriteTime = FindData.ftLastWriteTime;
+		FindClose(FindHandle);
+	}
+	return LastWriteTime;
+}
+
+static Win32_game_code Win32LoadGameCode (char *SrcDLLName)
 {
 	Win32_game_code Result = {};
-	CopyFileA("Raavanan.dll", "Raavanan_temp.dll", FALSE);
-	Result.GameCodeDLL = LoadLibraryA("Raavanan_temp.dll");
+	char *TempDLLName = "Raavanan_temp.dll";
+	Result.DllLastWriteTime = Win32GetLastWriteTime(SrcDLLName);
+	CopyFileA(SrcDLLName, TempDLLName, FALSE);
+	Result.GameCodeDLL = LoadLibraryA(TempDLLName);
 	if(Result.GameCodeDLL)
 	{
 		Result.UpdateAndRender = (game_update_and_Render *)GetProcAddress(Result.GameCodeDLL, "GameUpdateAndRender");
@@ -657,15 +673,17 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 				int DebugTimeMarkerIndex = 0;
 				Win32_debug_time_marker DebugTimeMarkers[GameUpdateHz/2] = {0};
 				
-				Win32_game_code Game = Win32LoadGameCode();
+				char *SrcDLLName = "Raavanan.dll";
+				Win32_game_code Game = Win32LoadGameCode(SrcDLLName);
 				uint32 LoadCounter = 120;
 				uint64 LastCycleCount = __rdtsc();
 				while(bIsRunning)
 				{
-					if(LoadCounter++ > 120)
+					FILETIME NewDllWriteTime = Win32GetLastWriteTime(SrcDLLName);
+					if(CompareFileTime(&NewDllWriteTime, &Game.DllLastWriteTime) != 0)
 					{
 						Win32UnLoadGameCode(&Game);
-						Game = Win32LoadGameCode();
+						Game = Win32LoadGameCode(SrcDLLName);
 						LoadCounter = 0;
 					}
 					game_controller_input *OldKeyboardController = GetController(OldInput, 0);
