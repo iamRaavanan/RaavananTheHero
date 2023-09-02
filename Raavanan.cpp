@@ -35,7 +35,7 @@ static void RenderGradiant(game_offscreen_buffer *Buffer, int xOffset, int yOffs
 		{
 			uint8 Red = (uint8)(x + xOffset);
 			uint8 Green = (uint8)(y+ yOffset);
-			*pixel++ = ((Green << 8) | (Red));
+			*pixel++ = ((Green << 16) | (Red));
 		}
 		Row += Buffer->Pitch;
 	}

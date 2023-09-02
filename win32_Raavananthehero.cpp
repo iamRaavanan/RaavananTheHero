@@ -49,10 +49,9 @@ inline FILETIME Win32GetLastWriteTime(char *Filename)
 	return LastWriteTime;
 }
 
-static Win32_game_code Win32LoadGameCode (char *SrcDLLName)
+static Win32_game_code Win32LoadGameCode (char *SrcDLLName, char *TempDLLName)
 {
 	Win32_game_code Result = {};
-	char *TempDLLName = "Raavanan_temp.dll";
 	Result.DllLastWriteTime = Win32GetLastWriteTime(SrcDLLName);
 	CopyFileA(SrcDLLName, TempDLLName, FALSE);
 	Result.GameCodeDLL = LoadLibraryA(TempDLLName);
@@ -586,8 +585,39 @@ static void Win32DebugSyncDisplay(win32_offscreen_buffer *Buffer, int MarkerCoun
 }
 #endif
 
+static void CatStrings(int SrcALen, char *SrcA, int SrcBLen, char *SrcB, size_t DstLen, char *Dst)
+{
+	for(int i = 0; i < SrcALen; i++)
+	{
+		*Dst++ = *SrcA++;
+	}
+	for(int i = 0; i < SrcBLen; i++)
+	{
+		*Dst++ = *SrcB++;
+	}
+	*Dst++ = 0;
+}
+
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, int nCmdShow)
-{	
+{
+	char ExeFileName[MAX_PATH];
+	DWORD SizeOfFileName = GetModuleFileNameA(0, ExeFileName, sizeof(ExeFileName));
+	char *OnePastLastSlash = ExeFileName;
+	for(char *Scan = ExeFileName; *Scan; ++Scan)
+	{
+		if(*Scan == '\\')
+		{
+			OnePastLastSlash = Scan + 1;
+		}
+	}
+	char SrcDLLName[] = "Raavanan.dll";
+	char SrcDLLFullPath[MAX_PATH];
+	CatStrings(OnePastLastSlash - ExeFileName, ExeFileName, sizeof(SrcDLLName)-1, SrcDLLName, sizeof(SrcDLLFullPath), SrcDLLFullPath);
+	char TempDLLName[] = "Raavanan_temp.dll";
+	char TempDLLFullPath[MAX_PATH];
+	CatStrings(OnePastLastSlash - ExeFileName, ExeFileName, sizeof(TempDLLName)-1, TempDLLName, sizeof(TempDLLFullPath), TempDLLFullPath);
+
+
 	LARGE_INTEGER PerformanceCounterFreqResult;
 	QueryPerformanceFrequency(&PerformanceCounterFreqResult);
 	PerfCountFrequency = PerformanceCounterFreqResult.QuadPart;	
@@ -673,17 +703,17 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 				int DebugTimeMarkerIndex = 0;
 				Win32_debug_time_marker DebugTimeMarkers[GameUpdateHz/2] = {0};
 				
-				char *SrcDLLName = "Raavanan.dll";
-				Win32_game_code Game = Win32LoadGameCode(SrcDLLName);
+				
+				Win32_game_code Game = Win32LoadGameCode(SrcDLLFullPath, TempDLLFullPath);
 				uint32 LoadCounter = 120;
 				uint64 LastCycleCount = __rdtsc();
 				while(bIsRunning)
 				{
-					FILETIME NewDllWriteTime = Win32GetLastWriteTime(SrcDLLName);
+					FILETIME NewDllWriteTime = Win32GetLastWriteTime(SrcDLLFullPath);
 					if(CompareFileTime(&NewDllWriteTime, &Game.DllLastWriteTime) != 0)
 					{
 						Win32UnLoadGameCode(&Game);
-						Game = Win32LoadGameCode(SrcDLLName);
+						Game = Win32LoadGameCode(SrcDLLFullPath, TempDLLFullPath);
 						LoadCounter = 0;
 					}
 					game_controller_input *OldKeyboardController = GetController(OldInput, 0);
