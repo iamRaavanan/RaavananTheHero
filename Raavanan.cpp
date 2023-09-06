@@ -7,9 +7,13 @@ static void UpdateSound(game_state *GameState, game_sound_buffer *SoundBuffer, i
 	int16 *SampleOut = SoundBuffer->Samples;
 	
 	for(int SampleIndex = 0; SampleIndex < SoundBuffer->SampleCount; ++SampleIndex)
-	{		
+	{
+#if 0
 		float SineVal = sinf(GameState->tSine);
 		int16 Samplevalue = (int16)(SineVal * ToneVolume);
+#else
+		int16 Samplevalue = 0;
+#endif
 		*SampleOut++ = Samplevalue;
 		*SampleOut++ = Samplevalue;
 		GameState->tSine += (float)(2.0f *  PI * (float)1.0f/(float)WavePeriod);
@@ -41,6 +45,26 @@ static void RenderGradiant(game_offscreen_buffer *Buffer, int xOffset, int yOffs
 	}
 }
 
+static void RenderPlayer(game_offscreen_buffer *Buffer, int PlayerX, int PlayerY)
+{
+	uint8 *EndofBuffer = (uint8 *)Buffer->Memory + Buffer->BytesPerPixel * Buffer->Width + Buffer->Pitch * Buffer->Height;
+	uint32 Color = 0xFFFFFFFF;
+	int Top = PlayerY;
+	int Bottom = PlayerY + 10;
+	for(int x = PlayerX; x < PlayerX + 10; ++x)
+	{
+		uint8 *Pixel = ((uint8 *) Buffer->Memory + x * Buffer->BytesPerPixel + Top * Buffer->Pitch);
+		for (int i = Top; i < Bottom; ++i)
+		{
+			if(Pixel >= Buffer->Memory && Pixel < EndofBuffer)
+			{
+				*(uint32 *)Pixel = Color;
+				Pixel += Buffer->Pitch;
+			}
+		}
+	}
+}
+
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
 	Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
@@ -58,6 +82,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 #endif
 		GameState->ToneHz = 256;
 		GameState->tSine = 0.0f;
+		GameState->PlayerX = GameState->PlayerY = 100;
+
 		Memory->IsInitialized = true;
 	}
 	for(int ControllerIndex = 0; ControllerIndex < ArrayCount(Input->Controllers); ControllerIndex++)
@@ -79,13 +105,22 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 				GameState->YOffset += 1;
 			}
 		}
+
+		GameState->PlayerX += (int)(4.0f * (Controller->StickAverageX));
+		GameState->PlayerY -= (int)(4.0f * (Controller->StickAverageY));
+		if(GameState->jumpTime > 0)
+		{
+			GameState->PlayerY -= (int)(10.0f * sinf(GameState->jumpTime));
+		}
 		if(Controller->ActionDown.EndedDown)
 		{
-			GameState->XOffset += 1;
+			GameState->jumpTime = 1.0f;
 		}
+		GameState->jumpTime -= 0.033f;
 	}	
 	
     RenderGradiant(Buffer, GameState->XOffset, GameState->YOffset);
+	RenderPlayer(Buffer, GameState->PlayerX, GameState->PlayerY);
 }
 
 extern "C" GET_GAME_SOUND_SAMPLES(GetGameSoundSamples)

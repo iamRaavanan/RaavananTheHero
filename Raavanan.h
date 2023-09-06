@@ -55,6 +55,7 @@ struct game_offscreen_buffer
 	int Width;
 	int Height;
 	int Pitch;
+	int BytesPerPixel;
 };
 
 struct game_sound_buffer 
@@ -133,6 +134,10 @@ struct game_state
 	int YOffset;
 
 	float tSine;
+
+	int PlayerX;
+	int PlayerY;
+	float jumpTime;
 };
 
 static void UpdateSound(game_state *GameState, game_sound_buffer *SoundBuffer);

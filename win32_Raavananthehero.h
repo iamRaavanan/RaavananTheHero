@@ -40,5 +40,14 @@ struct Win32_debug_time_marker
 	DWORD FlipPlayCursor;
 	DWORD FlipWriteCursor;
 };
+
+struct Win32_InputRecordingState
+{
+	HANDLE RecordingHanlde;
+	int InputRecordingIndex = 0;
+	HANDLE PlaybackHandle;
+	int InputPlayingIndex = 0;	
+};
+
 #define WIN32_RAAVANANTHEHERO
 #endif
