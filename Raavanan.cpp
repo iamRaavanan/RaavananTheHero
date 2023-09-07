@@ -110,11 +110,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 		GameState->PlayerY -= (int)(4.0f * (Controller->StickAverageY));
 		if(GameState->jumpTime > 0)
 		{
-			GameState->PlayerY -= (int)(10.0f * sinf(GameState->jumpTime));
+			GameState->PlayerY += (int)(10.0f * sinf(3.14f * GameState->jumpTime));
 		}
 		if(Controller->ActionDown.EndedDown)
 		{
-			GameState->jumpTime = 1.0f;
+			GameState->jumpTime = 2.0f;
 		}
 		GameState->jumpTime -= 0.033f;
 	}	

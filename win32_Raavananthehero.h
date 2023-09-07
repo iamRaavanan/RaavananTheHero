@@ -41,8 +41,10 @@ struct Win32_debug_time_marker
 	DWORD FlipWriteCursor;
 };
 
-struct Win32_InputRecordingState
+struct Win32_RecordingState
 {
+	uint64 TotalSize;
+	void *GameMemoryBlock;
 	HANDLE RecordingHanlde;
 	int InputRecordingIndex = 0;
 	HANDLE PlaybackHandle;
