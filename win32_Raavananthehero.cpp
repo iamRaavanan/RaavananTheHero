@@ -446,6 +446,7 @@ static void Win32PlaybackInput (Win32_RecordingState *RecordingState, game_input
 			int playingIndex = RecordingState->InputPlayingIndex;
 			Win32EndInputPlayback(RecordingState);
 			Win32BeginInputPlayback(RecordingState, playingIndex);
+			ReadFile(RecordingState->PlaybackHandle, NewInput, sizeof(*NewInput), &BytesRead, 0);
 		}
 	}
 }
