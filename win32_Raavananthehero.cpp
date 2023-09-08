@@ -305,6 +305,14 @@ static LRESULT CALLBACK Win32Wndproc (HWND hwnd, UINT uMsg, WPARAM wParam, LPARA
 		} break;
 		case WM_ACTIVATEAPP:
 		{
+			if(wParam == TRUE)
+			{
+				SetLayeredWindowAttributes(hwnd, RGB(0,0,0), 255, LWA_ALPHA);
+			}
+			else
+			{
+				SetLayeredWindowAttributes(hwnd, RGB(0,0,0), 64, LWA_ALPHA);
+			}
 			OutputDebugStringA("WM_ACTIVATEAPP\n");
 		} break;
 		case WM_SYSKEYDOWN:
@@ -698,7 +706,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 	WNDCLASSA WindowClass = {};
 	//win32_window_dimension dimension = GetWindowDimension(hwnd);
 	Win32ResizeDBISection(&backBuffer, 1280, 720);
-	WindowClass.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
+	WindowClass.style = CS_HREDRAW | CS_VREDRAW;// | CS_OWNDC;
 	WindowClass.lpfnWndProc = Win32Wndproc;
 	WindowClass.hInstance = hInstance;
 	WindowClass.lpszClassName = "RaavananTheHeroWindowClass";
@@ -709,12 +717,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 
 	if(RegisterClass(&WindowClass))
 	{
-		HWND WindowHandle = CreateWindowExA(0, WindowClass.lpszClassName, "RaavananTheHero", WS_OVERLAPPEDWINDOW | WS_VISIBLE, 
+		HWND WindowHandle = CreateWindowExA(WS_EX_TOPMOST|WS_EX_LAYERED, WindowClass.lpszClassName, "RaavananTheHero", WS_OVERLAPPEDWINDOW | WS_VISIBLE, 
 							CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, 0, 0, hInstance, 0);
 		if (WindowHandle) 
 		{
-			HDC DeviceContext = GetDC(WindowHandle);	
-					
+			// SetLayeredWindowAttributes(WindowHandle, RGB(0,0,0), 128, LWA_ALPHA);
 			Win32_Sound_Output SoundOutput = {};
 			SoundOutput.SamplesPerSecond = 48000;
 			SoundOutput.CurrentSampleIndex = 0;
@@ -1004,8 +1011,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 	#if RAAVANAN_INTERNAL
 						Win32DebugSyncDisplay(&backBuffer, ArrayCount(DebugTimeMarkers), DebugTimeMarkers, DebugTimeMarkerIndex - 1, &SoundOutput, TargetSecondsPerFrame);
 	#endif
+						HDC DeviceContext = GetDC(WindowHandle);
 						Win32UpdateBufferInWindow (&backBuffer, DeviceContext, dimension.Width, dimension.Height);
-						//ReleaseDC(WindowHandle, DeviceContext);
+						ReleaseDC(WindowHandle, DeviceContext);
 						FlipWallClock = Win32GetWallClock();
 	#if RAAVANAN_INTERNAL
 						{

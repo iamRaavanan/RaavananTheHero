@@ -47,7 +47,7 @@ static void RenderGradiant(game_offscreen_buffer *Buffer, int xOffset, int yOffs
 
 static void RenderPlayer(game_offscreen_buffer *Buffer, int PlayerX, int PlayerY)
 {
-	uint8 *EndofBuffer = (uint8 *)Buffer->Memory + Buffer->BytesPerPixel * Buffer->Width + Buffer->Pitch * Buffer->Height;
+	uint8 *EndofBuffer = (uint8 *)Buffer->Memory + Buffer->Pitch * Buffer->Height;
 	uint32 Color = 0xFFFFFFFF;
 	int Top = PlayerY;
 	int Bottom = PlayerY + 10;
@@ -56,7 +56,7 @@ static void RenderPlayer(game_offscreen_buffer *Buffer, int PlayerX, int PlayerY
 		uint8 *Pixel = ((uint8 *) Buffer->Memory + x * Buffer->BytesPerPixel + Top * Buffer->Pitch);
 		for (int i = Top; i < Bottom; ++i)
 		{
-			if(Pixel >= Buffer->Memory && Pixel < EndofBuffer)
+			if(Pixel >= Buffer->Memory && ((Pixel + 4) <= EndofBuffer))
 			{
 				*(uint32 *)Pixel = Color;
 				Pixel += Buffer->Pitch;
