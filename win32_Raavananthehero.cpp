@@ -490,7 +490,7 @@ static void Win32BeginRecordingInput(Win32_RecordingState *RecordingState, int I
 static void Win32EndRecordingInput(Win32_RecordingState *RecordingState)
 {
 	CloseHandle(RecordingState->RecordingHanlde);
-	RecordingState->InputRecordingIndex = 0;
+	RecordingState->InputRecordingIndex = -1;
 }
 
 static void Win32BeginInputPlayback(Win32_RecordingState *RecordingState, int InputPlayingIndex)
@@ -499,9 +499,9 @@ static void Win32BeginInputPlayback(Win32_RecordingState *RecordingState, int In
 	if(ReplayBuffer->MemoryBlock)
 	{
 		RecordingState->InputPlayingIndex = InputPlayingIndex;
-		RecordingState->PlaybackHandle = ReplayBuffer->FileHandle;
+		//RecordingState->PlaybackHandle = ReplayBuffer->FileHandle;
 		char FileName[WIN32_STATE_FILE_NAME_COUNT];
-		Win32GetInputFileLocation(RecordingState, false, InputPlayingIndex, sizeof(FileName), FileName);
+		Win32GetInputFileLocation(RecordingState, true, InputPlayingIndex, sizeof(FileName), FileName);
 		RecordingState->PlaybackHandle = CreateFileA(FileName, GENERIC_READ, 0, 0, OPEN_EXISTING, 0, 0);
 		// DWORD BytesToRead = (DWORD)RecordingState->TotalSize;
 		// Assert(RecordingState->TotalSize == BytesToRead);
@@ -624,14 +624,14 @@ static void Win32ProcessMessage (Win32_RecordingState *RecordingState, game_cont
 					{
 						if(KeyIsDown)
 						{
-							if (RecordingState->InputRecordingIndex == 0)
+							if (RecordingState->InputRecordingIndex == -1)
 							{
-								Win32BeginRecordingInput(RecordingState, 1);
+								Win32BeginRecordingInput(RecordingState, 0);
 							}
 							else
 							{
 								Win32EndRecordingInput(RecordingState);
-								Win32BeginInputPlayback(RecordingState, 1);
+								Win32BeginInputPlayback(RecordingState, 0);
 							}
 						}						
 					}
@@ -758,7 +758,7 @@ static void Win32DebugSyncDisplay(win32_offscreen_buffer *Buffer, int MarkerCoun
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, int nCmdShow)
 {
 	Win32_RecordingState RecordingState = {};
-	
+	RecordingState.InputRecordingIndex = -1;
 	LARGE_INTEGER PerformanceCounterFreqResult;
 	QueryPerformanceFrequency(&PerformanceCounterFreqResult);
 	PerfCountFrequency = PerformanceCounterFreqResult.QuadPart;	
@@ -831,7 +831,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 #endif
 			game_memory GameMemory = {};
 			GameMemory.PermanentStorageSize = Megabytes(64);
-			GameMemory.TransientStorageSize = Gigabytes(1);
+			GameMemory.TransientStorageSize = Megabytes(512);
 
 			RecordingState.TotalSize = GameMemory.PermanentStorageSize + GameMemory.TransientStorageSize;
 			//AdjustTokenPrivileges (WindowHandle, WINBOOL DisableAllPrivileges, PTOKEN_PRIVILEGES NewState, DWORD BufferLength, PTOKEN_PRIVILEGES PreviousState, PDWORD ReturnLength);
@@ -842,21 +842,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 			for(int ReplayIndex = 0; ReplayIndex < ArrayCount(RecordingState.ReplayBuffers); ++ReplayIndex)
 			{
 				Win32_Replay_Buffer *ReplayBuffer = &RecordingState.ReplayBuffers[ReplayIndex];
-				//ReplayBuffer->MemoryBlock = VirtualAlloc(0, (size_t)RecordingState.TotalSize, MEM_RESERVE|MEM_COMMIT/*|MEM_LARGE_PAGES*/, PAGE_READWRITE);
 				Win32GetInputFileLocation(&RecordingState, false, ReplayIndex, sizeof(ReplayBuffer->FileName), ReplayBuffer->FileName);
-				ReplayBuffer->FileHandle = CreateFileA(ReplayBuffer->FileName, GENERIC_READ|GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
-				ReplayBuffer->MemoryMap = CreateFileMapping(ReplayBuffer->FileHandle, 0, 
-								PAGE_READWRITE, (RecordingState.TotalSize >> 32), 
-								RecordingState.TotalSize & 0xFFFFFFFF, 0);
-				ReplayBuffer->MemoryBlock = MapViewOfFile (ReplayBuffer->MemoryMap, FILE_MAP_ALL_ACCESS, 0, 0, (size_t)RecordingState.TotalSize);
-				if(ReplayBuffer->MemoryBlock)
-				{
-					
-				}
-				else
-				{
-					
-				}				
+				//ReplayBuffer->MemoryBlock = VirtualAlloc(0, (size_t)RecordingState.TotalSize, MEM_RESERVE|MEM_COMMIT/*|MEM_LARGE_PAGES*/, PAGE_READWRITE);
+				ReplayBuffer->FileHandle = CreateFileA(ReplayBuffer->FileName, GENERIC_WRITE|GENERIC_READ, 0, 0, CREATE_ALWAYS, 0, 0);
+				LARGE_INTEGER MaxSize;
+				MaxSize.QuadPart = RecordingState.TotalSize;
+				ReplayBuffer->MemoryMap = CreateFileMapping(ReplayBuffer->FileHandle, 0, PAGE_READWRITE, MaxSize.HighPart, MaxSize.LowPart, 0);
+				ReplayBuffer->MemoryBlock = MapViewOfFileEx (ReplayBuffer->MemoryMap, FILE_MAP_ALL_ACCESS, 0, 0, (size_t)RecordingState.TotalSize, 0);
 			}
 #if RAAVANAN_INTERNAL		
 			GameMemory.DEBUGReadEntireFile = DEBUGReadEntireFile;
@@ -992,11 +984,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 						GBuffer.Pitch = backBuffer.Pitch;		
 						GBuffer.BytesPerPixel = backBuffer.BytesPerPixel;				
 						
-						if(RecordingState.InputRecordingIndex)
+						if(RecordingState.InputRecordingIndex >= 0)
 						{
 							Win32RecordInput(&RecordingState, NewInput);
 						}
-						if(RecordingState.InputPlayingIndex)
+						if(RecordingState.InputPlayingIndex >= 0)
 						{
 							Win32PlaybackInput(&RecordingState, NewInput);
 						}
