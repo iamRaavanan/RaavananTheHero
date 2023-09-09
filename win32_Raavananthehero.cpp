@@ -39,6 +39,9 @@ struct Win32_game_code
 inline FILETIME Win32GetLastWriteTime(char *Filename)
 {
 	FILETIME LastWriteTime = {};
+	// Both options provides the way to retrieve the last write time for the particualr file
+#if 0	
+	// This uses operation system handle to retrieve the same
 	WIN32_FIND_DATA FindData;
 	HANDLE FindHandle = FindFirstFileA(Filename, &FindData);
 	if(FindHandle != INVALID_HANDLE_VALUE)
@@ -46,6 +49,14 @@ inline FILETIME Win32GetLastWriteTime(char *Filename)
 		LastWriteTime = FindData.ftLastWriteTime;
 		FindClose(FindHandle);
 	}
+#else
+	// This uses get function to retrieve the same in a much smoother way
+	WIN32_FILE_ATTRIBUTE_DATA Data;
+	if(GetFileAttributesExA (Filename, GetFileExInfoStandard, &Data))
+	{
+		LastWriteTime = Data.ftLastWriteTime;
+	}
+#endif
 	return LastWriteTime;
 }
 
@@ -104,6 +115,47 @@ static void Win32LoadXInput(void)
 static LPDIRECTSOUNDBUFFER GlobalSecondaryBuffer;
 #define DIRECT_SOUND_CREATE(name) HRESULT WINAPI name(LPCGUID lpGUID,LPDIRECTSOUND *ppDS,LPUNKNOWN pUnkOuter)
 typedef DIRECT_SOUND_CREATE(direct_sound_create);
+
+static void Win32GetEXEFileName(Win32_RecordingState *State)
+{
+	DWORD SizeOfFileName = GetModuleFileNameA(0, State->ExeFileName, sizeof(State->ExeFileName));
+	State->OnePastLastExeFileNameSlash = State->ExeFileName;
+	for(char *Scan = State->ExeFileName; *Scan; ++Scan)
+	{
+		if(*Scan == '\\')
+		{
+			State->OnePastLastExeFileNameSlash = Scan + 1;
+		}
+	}
+}
+
+static int StringLength (char *str)
+{
+	int count = 0;
+	while(*str++)
+	{
+		++count;
+	}
+	return count;
+}
+
+static void CatStrings(int SrcALen, char *SrcA, int SrcBLen, char *SrcB, size_t DstLen, char *Dst)
+{
+	for(int i = 0; i < SrcALen; i++)
+	{
+		*Dst++ = *SrcA++;
+	}
+	for(int i = 0; i < SrcBLen; i++)
+	{
+		*Dst++ = *SrcB++;
+	}
+	*Dst++ = 0;
+}
+
+static void Win32MakeEXEPathFileName(Win32_RecordingState *State, char *FileName, int DstCount, char *Dst)
+{
+	CatStrings(State->OnePastLastExeFileNameSlash - State->ExeFileName, State->ExeFileName, StringLength(FileName), FileName, DstCount, Dst);
+}
 
 #if RAAVANAN_INTERNAL
 DEBUG_FREE_FILE_MEMORY (DEBUGFreeFileMemory)
@@ -276,7 +328,7 @@ void Win32UpdateBufferInWindow (win32_offscreen_buffer *Buffer, HDC DeviceContex
 	// int windowHeight = WindowRect->bottom - WindowRect->top;
 	//StretchDIBits(DeviceContext, x, y, width, height, x, y, width, height, BitmapMemory, &BitmapInfo, DIB_RGB_COLORS,SRCCOPY);
 	StretchDIBits(DeviceContext, 
-					0, 0, windowWidth, windowHeight, 
+					0, 0, Buffer->Width, Buffer->Height, 
 					0, 0, Buffer->Width, Buffer->Height, 
 					Buffer->Memory, 
 					&Buffer->Info, 
@@ -396,10 +448,17 @@ static void Win32ProcessKeyboardMessage (game_button_state *KeyboardState, bool 
 	++KeyboardState->HalfTransitionCount;
 }
 
+static void Win32GetInputFileLocation (Win32_RecordingState *RecordingState, int SlotIndex, int DstCount, char *Dst)
+{
+	Assert(SlotIndex == 1);
+	Win32MakeEXEPathFileName(RecordingState, "RecordedLoop_edit.rth", DstCount, Dst);
+}
+
 static void Win32BeginRecordingInput(Win32_RecordingState *RecordingState, int InputRecordingIndex)
 {
 	RecordingState->InputRecordingIndex = InputRecordingIndex;
-	char *FileName = "Foo.rth";
+	char FileName[WIN32_STATE_FILE_NAME_COUNT];
+	Win32GetInputFileLocation(RecordingState, InputRecordingIndex, sizeof(FileName), FileName);
 	RecordingState->RecordingHanlde = CreateFileA(FileName, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
 	DWORD BytesToWrite = (DWORD)RecordingState->TotalSize;
 	Assert(RecordingState->TotalSize == BytesToWrite);
@@ -416,7 +475,8 @@ static void Win32EndRecordingInput(Win32_RecordingState *RecordingState)
 static void Win32BeginInputPlayback(Win32_RecordingState *RecordingState, int InputPlayingIndex)
 {
 	RecordingState->InputPlayingIndex = InputPlayingIndex;
-	char *FileName = "Foo.rth";
+	char FileName[WIN32_STATE_FILE_NAME_COUNT];
+	Win32GetInputFileLocation(RecordingState, InputPlayingIndex, sizeof(FileName), FileName);
 	RecordingState->PlaybackHandle = CreateFileA(FileName, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
 	DWORD BytesToRead = (DWORD)RecordingState->TotalSize;
 	Assert(RecordingState->TotalSize == BytesToRead);
@@ -663,42 +723,21 @@ static void Win32DebugSyncDisplay(win32_offscreen_buffer *Buffer, int MarkerCoun
 }
 #endif
 
-static void CatStrings(int SrcALen, char *SrcA, int SrcBLen, char *SrcB, size_t DstLen, char *Dst)
-{
-	for(int i = 0; i < SrcALen; i++)
-	{
-		*Dst++ = *SrcA++;
-	}
-	for(int i = 0; i < SrcBLen; i++)
-	{
-		*Dst++ = *SrcB++;
-	}
-	*Dst++ = 0;
-}
-
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine, int nCmdShow)
 {
-	char ExeFileName[MAX_PATH];
-	DWORD SizeOfFileName = GetModuleFileNameA(0, ExeFileName, sizeof(ExeFileName));
-	char *OnePastLastSlash = ExeFileName;
-	for(char *Scan = ExeFileName; *Scan; ++Scan)
-	{
-		if(*Scan == '\\')
-		{
-			OnePastLastSlash = Scan + 1;
-		}
-	}
-	char SrcDLLName[] = "Raavanan.dll";
-	char SrcDLLFullPath[MAX_PATH];
-	CatStrings(OnePastLastSlash - ExeFileName, ExeFileName, sizeof(SrcDLLName)-1, SrcDLLName, sizeof(SrcDLLFullPath), SrcDLLFullPath);
-	char TempDLLName[] = "Raavanan_temp.dll";
-	char TempDLLFullPath[MAX_PATH];
-	CatStrings(OnePastLastSlash - ExeFileName, ExeFileName, sizeof(TempDLLName)-1, TempDLLName, sizeof(TempDLLFullPath), TempDLLFullPath);
-
-
+	Win32_RecordingState RecordingState = {};
+	
 	LARGE_INTEGER PerformanceCounterFreqResult;
 	QueryPerformanceFrequency(&PerformanceCounterFreqResult);
 	PerfCountFrequency = PerformanceCounterFreqResult.QuadPart;	
+
+	Win32GetEXEFileName(&RecordingState);
+
+	char SrcDLLFullPath[WIN32_STATE_FILE_NAME_COUNT];
+	Win32MakeEXEPathFileName (&RecordingState, "Raavanan.dll", sizeof(SrcDLLFullPath), SrcDLLFullPath);
+	
+	char TempDLLFullPath[MAX_PATH];
+	Win32MakeEXEPathFileName(&RecordingState, "Raavanan_temp.dll", sizeof(TempDLLFullPath), TempDLLFullPath);
 
 	UINT DesiredSchedulerMS = 1;
 	bool SleepIsGranular = (timeBeginPeriod(DesiredSchedulerMS) == TIMERR_NOERROR);
@@ -734,8 +773,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 			Win32ClearBuffer(&SoundOutput);
 			GlobalSecondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
 
-			bIsRunning = true;
-			Win32_RecordingState RecordingState = {};
+			bIsRunning = true;			
 #if 0
 			while (bIsRunning)
 			{
@@ -759,7 +797,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 			GameMemory.TransientStorageSize = Gigabytes(1);
 
 			RecordingState.TotalSize = GameMemory.PermanentStorageSize + GameMemory.TransientStorageSize;
-			RecordingState.GameMemoryBlock = VirtualAlloc(BaseAddress, (size_t)RecordingState.TotalSize, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+			//AdjustTokenPrivileges (WindowHandle, WINBOOL DisableAllPrivileges, PTOKEN_PRIVILEGES NewState, DWORD BufferLength, PTOKEN_PRIVILEGES PreviousState, PDWORD ReturnLength);
+			RecordingState.GameMemoryBlock = VirtualAlloc(BaseAddress, (size_t)RecordingState.TotalSize, MEM_RESERVE|MEM_COMMIT/*|MEM_LARGE_PAGES*/, PAGE_READWRITE);
 			GameMemory.PermanentStorage = RecordingState.GameMemoryBlock;
 			GameMemory.TransientStorage = ((uint8 *)GameMemory.PermanentStorage + GameMemory.PermanentStorageSize);
 #if RAAVANAN_INTERNAL		
@@ -821,6 +860,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 							XINPUT_STATE ControllerState;
 							if(XInputGetState_(ControllerIndex, &ControllerState) == ERROR_SUCCESS) {
 								NewController->IsConnected = true;
+								NewController->IsAnalog = OldController->IsAnalog;
 								// Controller is plugged-in
 								XINPUT_GAMEPAD *Pad = &ControllerState.Gamepad;
 															

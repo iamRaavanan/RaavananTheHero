@@ -144,6 +144,10 @@ static void UpdateSound(game_state *GameState, game_sound_buffer *SoundBuffer);
 
 #define GAME_UPDATE_AND_RENDER(name) void name(game_memory *Memory, game_input *Input, game_offscreen_buffer *Buffer)
 typedef GAME_UPDATE_AND_RENDER(game_update_and_Render);
+// Stub functions are kept for the fallback, We can remove the below stub funciton,
+// and assign 0 by default. But, whenever we call that function, we need to do null-check
+// before calling the function.
+// Ex: if (GameUpdateAndRender) { GameUpdateAndRender(); }
 GAME_UPDATE_AND_RENDER(GameUpdateAndRenderStub)
 {
 }
