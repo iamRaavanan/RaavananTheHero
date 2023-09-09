@@ -73,11 +73,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 	{
 #if RAAVANAN_INTERNAL
 		char *Filename = __FILE__;
-		debug_read_file_result File = Memory->DEBUGReadEntireFile(Filename);
+		debug_read_file_result File = Memory->DEBUGReadEntireFile(Thread, Filename);
 		if(File.Content)
 		{
-			Memory->DEBUGWriteEntireFile("test.out", File.ContentSize, File.Content);
-			Memory->DEBUGFreeFileMemory(File.Content);
+			Memory->DEBUGWriteEntireFile(Thread, "test.out", File.ContentSize, File.Content);
+			Memory->DEBUGFreeFileMemory(Thread, File.Content);
 		}
 #endif
 		GameState->ToneHz = 256;
@@ -121,6 +121,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 	
     RenderGradiant(Buffer, GameState->XOffset, GameState->YOffset);
 	RenderPlayer(Buffer, GameState->PlayerX, GameState->PlayerY);
+	if(Input->MouseButtons[0].EndedDown)
+	{
+		RenderPlayer(Buffer, Input->MouseX, Input->MouseY);
+	}
+	//RenderPlayer(Buffer, Input->MouseX, Input->MouseY);
 }
 
 extern "C" GET_GAME_SOUND_SAMPLES(GetGameSoundSamples)

@@ -30,6 +30,11 @@ uint32 SafeTruncateUInt64(uint64 value)
 	return Result;
 }
 
+struct thread_context
+{
+	int Placeholder;
+};
+
 #if RAAVANAN_INTERNAL
 struct debug_read_file_result
 {
@@ -37,13 +42,13 @@ struct debug_read_file_result
 	void *Content;
 };
 
-#define DEBUG_READ_ENTIRE_FILE(name) debug_read_file_result name(char *Filename)
+#define DEBUG_READ_ENTIRE_FILE(name) debug_read_file_result name(thread_context *Thread, char *Filename)
 typedef DEBUG_READ_ENTIRE_FILE(debug_read_entire_file);
 
-#define DEBUG_FREE_FILE_MEMORY(name) void name(void *Memory)
+#define DEBUG_FREE_FILE_MEMORY(name) void name(thread_context *Thread, void *Memory)
 typedef DEBUG_FREE_FILE_MEMORY(debug_free_file_memory);
 
-#define DEBUG_WRITE_ENTIRE_FILE(name) bool name (char *Filename, uint32 Memorysize, void *Memory)
+#define DEBUG_WRITE_ENTIRE_FILE(name) bool name (thread_context *Thread, char *Filename, uint32 Memorysize, void *Memory)
 typedef DEBUG_WRITE_ENTIRE_FILE(debug_write_entire_file);
 
 #else
@@ -103,6 +108,8 @@ struct game_controller_input
 
 struct game_input
 {
+	game_button_state MouseButtons[5];
+	int32 MouseX, MouseY, MouseZ;
 	game_controller_input Controllers[5];	// 4 controller + 1 Keyboard
 };
 
@@ -142,7 +149,7 @@ struct game_state
 
 static void UpdateSound(game_state *GameState, game_sound_buffer *SoundBuffer);
 
-#define GAME_UPDATE_AND_RENDER(name) void name(game_memory *Memory, game_input *Input, game_offscreen_buffer *Buffer)
+#define GAME_UPDATE_AND_RENDER(name) void name(thread_context *Thread, game_memory *Memory, game_input *Input, game_offscreen_buffer *Buffer)
 typedef GAME_UPDATE_AND_RENDER(game_update_and_Render);
 // Stub functions are kept for the fallback, We can remove the below stub funciton,
 // and assign 0 by default. But, whenever we call that function, we need to do null-check
@@ -152,7 +159,7 @@ GAME_UPDATE_AND_RENDER(GameUpdateAndRenderStub)
 {
 }
 
-#define GET_GAME_SOUND_SAMPLES(name) void name(game_memory *Memory, game_sound_buffer *SoundBuffer)
+#define GET_GAME_SOUND_SAMPLES(name) void name(thread_context *Thread, game_memory *Memory, game_sound_buffer *SoundBuffer)
 typedef GET_GAME_SOUND_SAMPLES(get_game_sound_samples);
 GET_GAME_SOUND_SAMPLES(GetGameSoundSamplesStub)
 {
