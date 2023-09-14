@@ -110,6 +110,9 @@ struct game_input
 {
 	game_button_state MouseButtons[5];
 	int32 MouseX, MouseY, MouseZ;
+
+	float secondsToAdvanceOverUpdate;
+
 	game_controller_input Controllers[5];	// 4 controller + 1 Keyboard
 };
 
@@ -136,6 +139,7 @@ struct game_memory
 
 struct game_state
 {
+#if RAAVANAN_INTERNAL
 	int ToneHz;
 	int XOffset;
 	int YOffset;
@@ -145,6 +149,7 @@ struct game_state
 	int PlayerX;
 	int PlayerY;
 	float jumpTime;
+#endif
 };
 
 static void UpdateSound(game_state *GameState, game_sound_buffer *SoundBuffer);

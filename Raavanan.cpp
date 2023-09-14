@@ -16,11 +16,13 @@ static void UpdateSound(game_state *GameState, game_sound_buffer *SoundBuffer, i
 #endif
 		*SampleOut++ = Samplevalue;
 		*SampleOut++ = Samplevalue;
+#if 0
 		GameState->tSine += (float)(2.0f *  PI * (float)1.0f/(float)WavePeriod);
 		if(GameState->tSine > (2.0f *  PI))
 		{
 			GameState->tSine -= (float)(2.0f *  PI);
 		}
+#endif
 	}
 }
 
@@ -45,23 +47,34 @@ static void RenderGradiant(game_offscreen_buffer *Buffer, int xOffset, int yOffs
 	}
 }
 
-static void RenderPlayer(game_offscreen_buffer *Buffer, int PlayerX, int PlayerY)
+static int32 RoundFloatToInt32(float value)
 {
-	uint8 *EndofBuffer = (uint8 *)Buffer->Memory + Buffer->Pitch * Buffer->Height;
-	uint32 Color = 0xFFFFFFFF;
-	int Top = PlayerY;
-	int Bottom = PlayerY + 10;
-	for(int x = PlayerX; x < PlayerX + 10; ++x)
+	int32 Result = (int32)(value + 0.5f);
+	return Result;
+}
+
+static void RenderRectangle(game_offscreen_buffer *Buffer, float realMinX, float realMinY, float realMaxX, float realMaxY, uint32 Color)
+{
+	int32 MinX = RoundFloatToInt32(realMinX);
+	int32 MinY = RoundFloatToInt32(realMinY);
+	int32 MaxX = RoundFloatToInt32(realMaxX);
+	int32 MaxY = RoundFloatToInt32(realMaxY);
+	
+	MinX = (MinX < 0) ? 0 : MinX;
+	MinY = (MinY < 0) ? 0 : MinY;
+	MaxX = (MaxX > Buffer->Width) ? Buffer->Width : MaxX;
+	MaxY = (MaxY > Buffer->Height) ? Buffer->Height : MaxY;
+
+	uint8 *Row = ((uint8 *)Buffer->Memory + MinX * Buffer->BytesPerPixel + MinY * Buffer->Pitch);
+	
+	for (int y = MinY; y < MaxY; ++y)
 	{
-		uint8 *Pixel = ((uint8 *) Buffer->Memory + x * Buffer->BytesPerPixel + Top * Buffer->Pitch);
-		for (int i = Top; i < Bottom; ++i)
+		uint32 *Pixel = (uint32 *)Row;
+		for (int x = MinX; x < MaxX; ++x)
 		{
-			if(Pixel >= Buffer->Memory && ((Pixel + 4) <= EndofBuffer))
-			{
-				*(uint32 *)Pixel = Color;
-				Pixel += Buffer->Pitch;
-			}
+			*Pixel++ = Color;
 		}
+		Row += Buffer->Pitch;
 	}
 }
 
@@ -79,10 +92,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 			Memory->DEBUGWriteEntireFile(Thread, "test.out", File.ContentSize, File.Content);
 			Memory->DEBUGFreeFileMemory(Thread, File.Content);
 		}
-#endif
 		GameState->ToneHz = 256;
 		GameState->tSine = 0.0f;
 		GameState->PlayerX = GameState->PlayerY = 100;
+#endif
 
 		Memory->IsInitialized = true;
 	}
@@ -91,11 +104,14 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 		game_controller_input *Controller = GetController(Input, ControllerIndex);
 		if(Controller->IsAnalog)
 		{
+#if RAAVANAN_INTERNAL
 			GameState->ToneHz = 256 + (int)(128.0f * (Controller->StickAverageY));
 			GameState->YOffset += (int)(4.0f * (Controller->StickAverageX));
+#endif
 		}
 		else
 		{
+#if RAAVANAN_INTERNAL
 			if(Controller->MoveDown.EndedDown)
 			{
 				GameState->YOffset -= 1;
@@ -104,8 +120,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 			{
 				GameState->YOffset += 1;
 			}
+#endif
 		}
-
+#if RAAVANAN_INTERNAL
 		GameState->PlayerX += (int)(4.0f * (Controller->StickAverageX));
 		GameState->PlayerY -= (int)(4.0f * (Controller->StickAverageY));
 		if(GameState->jumpTime > 0)
@@ -117,19 +134,15 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 			GameState->jumpTime = 2.0f;
 		}
 		GameState->jumpTime -= 0.033f;
+#endif
 	}	
-	
-    RenderGradiant(Buffer, GameState->XOffset, GameState->YOffset);
-	RenderPlayer(Buffer, GameState->PlayerX, GameState->PlayerY);
-	if(Input->MouseButtons[0].EndedDown)
-	{
-		RenderPlayer(Buffer, Input->MouseX, Input->MouseY);
-	}
-	//RenderPlayer(Buffer, Input->MouseX, Input->MouseY);
+	RenderRectangle (Buffer, 0.0f, 0.0f, (float)Buffer->Width, (float)Buffer->Height, 0x00FF00FF);
+	RenderRectangle (Buffer, 10.0f, 10.0f, 20.0f, 20.0f, 0x0000FFFF);
+    //RenderGradiant(Buffer, GameState->XOffset, GameState->YOffset);
 }
 
 extern "C" GET_GAME_SOUND_SAMPLES(GetGameSoundSamples)
 {
 	game_state *GameState = (game_state *)Memory->PermanentStorage;
-	UpdateSound(GameState, SoundBuffer, GameState->ToneHz);
+	UpdateSound(GameState, SoundBuffer, 400 /* GameState->ToneHz */);
 }

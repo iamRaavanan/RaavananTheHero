@@ -1,6 +1,6 @@
 @echo off
 
-set CommonCompileFlags=-MTd -nologo -GR- -EHa- -Od -Oi -WX -W4 -wd4201 -wd4100 -wd4189 -DRAAVANAN_INTERNAL=1 -DRAAVANAN_WIN32=1-FC -Z7
+set CommonCompileFlags=-MTd -nologo -GR- -EHa- -Od -Oi -WX -W4 -wd4201 -wd4100 -wd4505 -wd4189 -DRAAVANAN_INTERNAL=0 -DRAAVANAN_WIN32=1-FC -Z7
 set CommonLinkerFlags= -opt:ref user32.lib Gdi32.lib Winmm.lib
 IF NOT EXIST ..\..\build mkdir ..\..\build
 pushd ..\..\build

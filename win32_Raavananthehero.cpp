@@ -777,7 +777,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 	Win32LoadXInput();
 	WNDCLASSA WindowClass = {};
 	//win32_window_dimension dimension = GetWindowDimension(hwnd);
-	Win32ResizeDBISection(&backBuffer, 1280, 720);
+	Win32ResizeDBISection(&backBuffer, 960, 540);
 	WindowClass.style = CS_HREDRAW | CS_VREDRAW;// | CS_OWNDC;
 	WindowClass.lpfnWndProc = Win32Wndproc;
 	WindowClass.hInstance = hInstance;
@@ -864,7 +864,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 				game_input Input[2] = {};
 				game_input *NewInput = &Input[0];
 				game_input *OldInput = &Input[1];
-
+				NewInput->secondsToAdvanceOverUpdate = TargetSecondsPerFrame;
+				
 				LARGE_INTEGER LastCounter = Win32GetWallClock();
 				LARGE_INTEGER FlipWallClock = Win32GetWallClock();
 				int DebugTimeMarkerIndex = 0;
