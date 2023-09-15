@@ -1,5 +1,6 @@
 #include "Raavanan.h"
-
+#include <stdio.h>
+#include <windows.h>
 static void UpdateSound(game_state *GameState, game_sound_buffer *SoundBuffer, int ToneHz)
 {
 	int16 ToneVolume = 3000;
@@ -47,13 +48,19 @@ static void RenderGradiant(game_offscreen_buffer *Buffer, int xOffset, int yOffs
 	}
 }
 
+static uint32 RoundFloatToUInt32(float value)
+{
+	uint32 Result = (uint32)(value + 0.5f);
+	return Result;
+}
+
 static int32 RoundFloatToInt32(float value)
 {
 	int32 Result = (int32)(value + 0.5f);
 	return Result;
 }
 
-static void RenderRectangle(game_offscreen_buffer *Buffer, float realMinX, float realMinY, float realMaxX, float realMaxY, uint32 Color)
+static void RenderRectangle(game_offscreen_buffer *Buffer, float realMinX, float realMinY, float realMaxX, float realMaxY, float R, float G, float B)
 {
 	int32 MinX = RoundFloatToInt32(realMinX);
 	int32 MinY = RoundFloatToInt32(realMinY);
@@ -65,6 +72,7 @@ static void RenderRectangle(game_offscreen_buffer *Buffer, float realMinX, float
 	MaxX = (MaxX > Buffer->Width) ? Buffer->Width : MaxX;
 	MaxY = (MaxY > Buffer->Height) ? Buffer->Height : MaxY;
 
+	uint32 Color = ((RoundFloatToInt32(R * 255.0f) << 16 | RoundFloatToInt32(G * 255.0f) << 8 | RoundFloatToInt32(B * 255.0f)));
 	uint8 *Row = ((uint8 *)Buffer->Memory + MinX * Buffer->BytesPerPixel + MinY * Buffer->Pitch);
 	
 	for (int y = MinY; y < MaxY; ++y)
@@ -136,9 +144,52 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 		GameState->jumpTime -= 0.033f;
 #endif
 	}	
-	RenderRectangle (Buffer, 0.0f, 0.0f, (float)Buffer->Width, (float)Buffer->Height, 0x00FF00FF);
-	RenderRectangle (Buffer, 10.0f, 10.0f, 20.0f, 20.0f, 0x0000FFFF);
+	uint32 TileMap[9][17] =
+	{
+		{1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1},
+		{1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 1},
+		{1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1},
+		{1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1},
+		{1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1},
+		{0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1},
+		{0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1},
+		{0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1},
+		{1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1}
+	};
+
+	float UpperLeftX = -30;
+	float UpperLeftY = 0;
+	float TileWidth = 60;
+	float TileHeight = 60;
+
+	RenderRectangle (Buffer, 0.0f, 0.0f, (float)Buffer->Width, (float)Buffer->Height, 0.0f, 0.0f, 0.0f);
+	for (int row = 0; row < 9; ++row)
+	{
+		for(int col = 0; col < 17; ++col)
+		{
+			uint32 TileID = TileMap[row][col];
+			float ColorVal = (TileID == 1) ? 1.0f : 0.5f;
+			float MinX = UpperLeftX + (col * TileWidth);
+			float MinY = UpperLeftY + (row * TileHeight);
+			float MaxX = MinX + TileWidth;
+			float MaxY = MinY + TileHeight;
+			char TextBuffer[256];
+			sprintf_s(TextBuffer, "T-ID:%d R: %d C: %d \n", TileID, row, col);
+			OutputDebugStringA(TextBuffer);
+			RenderRectangle(Buffer, MinX, MinY, MaxX, MaxY, ColorVal, ColorVal, ColorVal);
+		}
+	}
     //RenderGradiant(Buffer, GameState->XOffset, GameState->YOffset);
+	GameState->PlayerX = 20;
+	GameState->PlayerY = 20;
+	float PlayerR = 1.0f;
+	float PlayerG = 1.0f;
+	float PlayerB = 0.0f;
+	float PlayerWidth = 0.75f * TileWidth;
+	float PlayerHeight = TileHeight;
+	float PlayerLeft = GameState->PlayerX - 0.5f * PlayerWidth;
+	float PlayerTop = GameState->PlayerY - PlayerHeight;
+	RenderRectangle(Buffer, PlayerLeft, PlayerTop, PlayerLeft + PlayerWidth, PlayerTop + PlayerHeight, PlayerR, PlayerG, PlayerB);
 }
 
 extern "C" GET_GAME_SOUND_SAMPLES(GetGameSoundSamples)

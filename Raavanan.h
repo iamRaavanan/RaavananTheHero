@@ -139,6 +139,8 @@ struct game_memory
 
 struct game_state
 {
+	float PlayerX;
+	float PlayerY;
 #if RAAVANAN_INTERNAL
 	int ToneHz;
 	int XOffset;
