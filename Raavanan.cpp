@@ -129,6 +129,32 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 				GameState->YOffset += 1;
 			}
 #endif
+			float dPlayerX = 0.0f;
+			float dPlayerY = 0.0f;
+			if(Controller->MoveUp.EndedDown)
+			{
+				dPlayerY = -1.0f;
+			}
+			if(Controller->MoveDown.EndedDown)
+			{
+				dPlayerY = 1.0f;
+			}
+			if(Controller->MoveRight.EndedDown)
+			{
+				dPlayerX = 1.0f;
+			}
+			if(Controller->MoveLeft.EndedDown)
+			{
+				dPlayerX = -1.0f;
+			}
+			dPlayerX *= 64.0f;
+			dPlayerY *= 64.0f;
+			GameState->PlayerX += dPlayerX * Input->deltaTime;
+			GameState->PlayerY += dPlayerY * Input->deltaTime;
+			
+			// char TextBuffer[256];
+			// sprintf_s(TextBuffer, "T-ID:%f R: %f \n", GameState->PlayerX, GameState->PlayerY);
+			// OutputDebugStringA(TextBuffer);
 		}
 #if RAAVANAN_INTERNAL
 		GameState->PlayerX += (int)(4.0f * (Controller->StickAverageX));
@@ -173,18 +199,13 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 			float MinY = UpperLeftY + (row * TileHeight);
 			float MaxX = MinX + TileWidth;
 			float MaxY = MinY + TileHeight;
-			char TextBuffer[256];
-			sprintf_s(TextBuffer, "T-ID:%d R: %d C: %d \n", TileID, row, col);
-			OutputDebugStringA(TextBuffer);
 			RenderRectangle(Buffer, MinX, MinY, MaxX, MaxY, ColorVal, ColorVal, ColorVal);
 		}
 	}
     //RenderGradiant(Buffer, GameState->XOffset, GameState->YOffset);
-	GameState->PlayerX = 20;
-	GameState->PlayerY = 20;
 	float PlayerR = 1.0f;
-	float PlayerG = 1.0f;
-	float PlayerB = 0.0f;
+	float PlayerG = 0.4f;
+	float PlayerB = 0.7f;
 	float PlayerWidth = 0.75f * TileWidth;
 	float PlayerHeight = TileHeight;
 	float PlayerLeft = GameState->PlayerX - 0.5f * PlayerWidth;

@@ -111,7 +111,7 @@ struct game_input
 	game_button_state MouseButtons[5];
 	int32 MouseX, MouseY, MouseZ;
 
-	float secondsToAdvanceOverUpdate;
+	float deltaTime;
 
 	game_controller_input Controllers[5];	// 4 controller + 1 Keyboard
 };

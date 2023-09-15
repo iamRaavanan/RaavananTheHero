@@ -864,7 +864,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 				game_input Input[2] = {};
 				game_input *NewInput = &Input[0];
 				game_input *OldInput = &Input[1];
-				NewInput->secondsToAdvanceOverUpdate = TargetSecondsPerFrame;
 				
 				LARGE_INTEGER LastCounter = Win32GetWallClock();
 				LARGE_INTEGER FlipWallClock = Win32GetWallClock();
@@ -877,6 +876,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 				uint64 LastCycleCount = __rdtsc();
 				while(bIsRunning)
 				{
+					NewInput->deltaTime = TargetSecondsPerFrame;
 					FILETIME NewDllWriteTime = Win32GetLastWriteTime(SrcDLLFullPath);
 					if(CompareFileTime(&NewDllWriteTime, &Game.DllLastWriteTime) != 0)
 					{
