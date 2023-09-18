@@ -137,6 +137,27 @@ struct game_memory
 #endif
 };
 
+struct tile_map
+{
+	int32 XCount;
+	int32 YCount;
+
+	float UpperLeftX;
+	float UpperLeftY;
+	float TileWidth;
+	float TileHeight;
+
+	uint32 *Tiles;
+};
+
+struct world
+{
+	int32 TileMapXCount;
+	int32 TileMapYCount;
+	tile_map *TileMaps;
+};
+
+
 struct game_state
 {
 	float PlayerX;

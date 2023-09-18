@@ -327,8 +327,14 @@ void Win32UpdateBufferInWindow (win32_offscreen_buffer *Buffer, HDC DeviceContex
 	// int windowWidth = WindowRect->right - WindowRect->left;
 	// int windowHeight = WindowRect->bottom - WindowRect->top;
 	//StretchDIBits(DeviceContext, x, y, width, height, x, y, width, height, BitmapMemory, &BitmapInfo, DIB_RGB_COLORS,SRCCOPY);
+	int xOffset = 10;
+	int yOffset = 10;
+	PatBlt(DeviceContext, 0, 0, windowWidth, yOffset, BLACKNESS);
+	PatBlt(DeviceContext, 0, yOffset + Buffer->Height, windowWidth, windowHeight, BLACKNESS);
+	PatBlt(DeviceContext, 0, 0, xOffset, windowHeight, BLACKNESS);
+	PatBlt(DeviceContext, xOffset + Buffer->Width, 0, windowWidth, windowHeight, BLACKNESS);
 	StretchDIBits(DeviceContext, 
-					0, 0, Buffer->Width, Buffer->Height, 
+					xOffset, yOffset, Buffer->Width, Buffer->Height, 
 					0, 0, Buffer->Width, Buffer->Height, 
 					Buffer->Memory, 
 					&Buffer->Info, 

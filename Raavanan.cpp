@@ -48,15 +48,21 @@ static void RenderGradiant(game_offscreen_buffer *Buffer, int xOffset, int yOffs
 	}
 }
 
-static uint32 RoundFloatToUInt32(float value)
+inline uint32 RoundFloatToUInt32(float value)
 {
 	uint32 Result = (uint32)(value + 0.5f);
 	return Result;
 }
 
-static int32 RoundFloatToInt32(float value)
+inline int32 RoundFloatToInt32(float value)
 {
 	int32 Result = (int32)(value + 0.5f);
+	return Result;
+}
+
+inline int32 TruncateFloatToInt32(float value)
+{
+	int32 Result = (int32)(value);
 	return Result;
 }
 
@@ -86,12 +92,140 @@ static void RenderRectangle(game_offscreen_buffer *Buffer, float realMinX, float
 	}
 }
 
+inline tile_map *GetTileMap (world *World, int32 TileMapX, int32 TileMapY)
+{
+	tile_map *TileMap = 0;
+	if((TileMapX >= 0) && (TileMapX < World->TileMapXCount) && 
+		(TileMapY >= 0) && (TileMapY < World->TileMapXCount))
+	{
+		TileMap = &World->TileMaps[TileMapY * World->TileMapXCount + TileMapX];
+		
+	}
+	return TileMap;
+}
+
+inline uint32 GetTileIndex1D(tile_map *TileMap, int32 TileX, int32 TileY)
+{
+	uint32 TileMapValue = TileMap->Tiles[TileY * TileMap->XCount + TileX];
+	return TileMapValue;
+}
+
+static bool IsValidTile(tile_map *Tile, float TestX, float TestY)
+{
+	bool Result = false;
+	int32 PlayerTileX = TruncateFloatToInt32((TestX + Tile->UpperLeftX) / Tile->TileWidth);
+	int32 PlayerTileY = TruncateFloatToInt32((TestY + Tile->UpperLeftY) / Tile->TileHeight);
+
+	if((PlayerTileX >= 0) &&(PlayerTileX < Tile->XCount) &&(PlayerTileY >= 0) &&(PlayerTileY < Tile->YCount))
+	{
+		uint32 TileValue = GetTileIndex1D(Tile, PlayerTileX, PlayerTileY);
+		Result = (TileValue == 0);
+	}
+	return Result;
+}
+
+static bool IsValidWorldPoint (world *World, int32 TileMapX, int32 TileMapY, float TestX, float TestY)
+{
+	bool Result = false;
+	tile_map *TileMap = GetTileMap(World, TileMapX, TileMapY);
+	if(TileMap)
+	{
+		int32 PlayerTileX = TruncateFloatToInt32((TestX + TileMap->UpperLeftX) / TileMap->TileWidth);
+		int32 PlayerTileY = TruncateFloatToInt32((TestY + TileMap->UpperLeftY) / TileMap->TileHeight);
+
+		if((PlayerTileX >= 0) &&(PlayerTileX < TileMap->XCount) &&
+			(PlayerTileY >= 0) &&(PlayerTileY < TileMap->YCount))
+		{
+			uint32 TileValue = GetTileIndex1D(TileMap, PlayerTileX, PlayerTileY);
+			Result = (TileValue == 0);
+		}
+	}
+	return Result;
+}
+
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
 	Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
 	game_state *GameState = (game_state *)Memory->PermanentStorage;
+
+#define TILE_MAP_COUNT_X 17
+#define TILE_MAP_COUNT_Y 9
+	
+	uint32 Tiles00[TILE_MAP_COUNT_Y][TILE_MAP_COUNT_X] =
+	{
+		{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+		{1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1},
+		{1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1},
+		{1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1},
+		{1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0},
+		{1, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1},
+		{1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1},
+		{1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1},
+		{1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1}
+	};
+	uint32 Tiles01[TILE_MAP_COUNT_Y][TILE_MAP_COUNT_X] =
+	{
+		{1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1},
+		{1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+		{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+		{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+		{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+		{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+		{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+		{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
+	};
+	uint32 Tiles10[TILE_MAP_COUNT_Y][TILE_MAP_COUNT_X] =
+	{
+		{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+		{1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1},
+		{1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1},
+		{1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1},
+		{0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1},
+		{1, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1},
+		{1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1},
+		{1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1},
+		{1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1}
+	};
+	uint32 Tiles11[TILE_MAP_COUNT_Y][TILE_MAP_COUNT_X] =
+	{
+		{1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1},
+		{1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+		{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+		{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+		{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+		{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+		{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+		{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
+	};
+	tile_map TileMaps[2][2];
+	TileMaps[0][0].UpperLeftX = -30;
+	TileMaps[0][0].UpperLeftY = 0;
+	TileMaps[0][0].TileWidth = 60;
+	TileMaps[0][0].TileHeight = 60;	
+	TileMaps[0][0].XCount = TILE_MAP_COUNT_X;
+	TileMaps[0][0].YCount = TILE_MAP_COUNT_Y;
+	TileMaps[0][0].Tiles = (uint32 *)Tiles00;
+
+	TileMaps[0][1] = TileMaps[0][0];
+	TileMaps[0][1].Tiles = (uint32 *)Tiles01;
+	
+	TileMaps[1][0] = TileMaps[0][0];
+	TileMaps[1][0].Tiles = (uint32 *)Tiles10;
+	
+	TileMaps[1][1] = TileMaps[0][0];
+	TileMaps[1][1].Tiles = (uint32 *)Tiles11;
+
+	tile_map *CurrentTileMap = &TileMaps[0][0];
+	float PlayerWidth = 0.75f * CurrentTileMap->TileWidth;
+	float PlayerHeight = CurrentTileMap->TileHeight;
+	
 	if(!Memory->IsInitialized)
 	{
+		GameState->PlayerX = 250;
+		GameState->PlayerY = 250;
+
 #if RAAVANAN_INTERNAL
 		char *Filename = __FILE__;
 		debug_read_file_result File = Memory->DEBUGReadEntireFile(Thread, Filename);
@@ -149,9 +283,16 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 			}
 			dPlayerX *= 64.0f;
 			dPlayerY *= 64.0f;
-			GameState->PlayerX += dPlayerX * Input->deltaTime;
-			GameState->PlayerY += dPlayerY * Input->deltaTime;
+			float NewPlayerX = GameState->PlayerX + dPlayerX * Input->deltaTime;
+			float NewPlayerY = GameState->PlayerY + dPlayerY * Input->deltaTime;
 			
+			if(IsValidTile(CurrentTileMap, NewPlayerX - 0.5f * PlayerWidth, NewPlayerY) &&
+				IsValidTile(CurrentTileMap, NewPlayerX + 0.5f * PlayerWidth, NewPlayerY) &&
+				IsValidTile(CurrentTileMap, NewPlayerX, NewPlayerY))
+			{
+				GameState->PlayerX = NewPlayerX;
+				GameState->PlayerY = NewPlayerY;
+			}
 			// char TextBuffer[256];
 			// sprintf_s(TextBuffer, "T-ID:%f R: %f \n", GameState->PlayerX, GameState->PlayerY);
 			// OutputDebugStringA(TextBuffer);
@@ -169,45 +310,26 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 		}
 		GameState->jumpTime -= 0.033f;
 #endif
-	}	
-	uint32 TileMap[9][17] =
-	{
-		{1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1},
-		{1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 1},
-		{1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1},
-		{1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1},
-		{1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1},
-		{0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1},
-		{0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1},
-		{0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1},
-		{1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1}
-	};
-
-	float UpperLeftX = -30;
-	float UpperLeftY = 0;
-	float TileWidth = 60;
-	float TileHeight = 60;
-
+	}
+	
 	RenderRectangle (Buffer, 0.0f, 0.0f, (float)Buffer->Width, (float)Buffer->Height, 0.0f, 0.0f, 0.0f);
 	for (int row = 0; row < 9; ++row)
 	{
 		for(int col = 0; col < 17; ++col)
 		{
-			uint32 TileID = TileMap[row][col];
+			uint32 TileID = GetTileIndex1D(CurrentTileMap, col, row);
 			float ColorVal = (TileID == 1) ? 1.0f : 0.5f;
-			float MinX = UpperLeftX + (col * TileWidth);
-			float MinY = UpperLeftY + (row * TileHeight);
-			float MaxX = MinX + TileWidth;
-			float MaxY = MinY + TileHeight;
+			float MinX = CurrentTileMap->UpperLeftX + ((float)col) * CurrentTileMap->TileWidth;
+			float MinY = CurrentTileMap->UpperLeftY + ((float)row) * CurrentTileMap->TileHeight;
+			float MaxX = MinX + CurrentTileMap->TileWidth;
+			float MaxY = MinY + CurrentTileMap->TileHeight;
 			RenderRectangle(Buffer, MinX, MinY, MaxX, MaxY, ColorVal, ColorVal, ColorVal);
 		}
 	}
     //RenderGradiant(Buffer, GameState->XOffset, GameState->YOffset);
 	float PlayerR = 1.0f;
 	float PlayerG = 0.4f;
-	float PlayerB = 0.7f;
-	float PlayerWidth = 0.75f * TileWidth;
-	float PlayerHeight = TileHeight;
+	float PlayerB = 0.7f;	
 	float PlayerLeft = GameState->PlayerX - 0.5f * PlayerWidth;
 	float PlayerTop = GameState->PlayerY - PlayerHeight;
 	RenderRectangle(Buffer, PlayerLeft, PlayerTop, PlayerLeft + PlayerWidth, PlayerTop + PlayerHeight, PlayerR, PlayerG, PlayerB);
