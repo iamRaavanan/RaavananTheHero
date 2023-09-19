@@ -218,6 +218,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 	TileMaps[1][1].Tiles = (uint32 *)Tiles11;
 
 	tile_map *CurrentTileMap = &TileMaps[0][0];
+
+	world World;
+	World.TileMapXCount = 2;
+	World.TileMapYCount = 2;
+	World.TileMaps = (tile_map *)TileMaps;
 	float PlayerWidth = 0.75f * CurrentTileMap->TileWidth;
 	float PlayerHeight = CurrentTileMap->TileHeight;
 	
