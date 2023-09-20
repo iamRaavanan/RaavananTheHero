@@ -104,42 +104,56 @@ inline tile_map *GetTileMap (world *World, int32 TileMapX, int32 TileMapY)
 	return TileMap;
 }
 
-inline uint32 GetTileIndex1D(tile_map *TileMap, int32 TileX, int32 TileY)
+inline uint32 GetTileIndex1D(world *World, tile_map *TileMap, int32 TileX, int32 TileY)
 {
-	uint32 TileMapValue = TileMap->Tiles[TileY * TileMap->XCount + TileX];
+	Assert(TileMap);
+	uint32 TileMapValue = TileMap->Tiles[TileY * World->XCount + TileX];
 	return TileMapValue;
 }
 
-static bool IsValidTile(tile_map *Tile, float TestX, float TestY)
+static bool IsValidTile(world *World, tile_map *Tile, int32 TestTileX, int32 TestTileY)
 {
 	bool Result = false;
-	int32 PlayerTileX = TruncateFloatToInt32((TestX - Tile->UpperLeftX) / Tile->TileWidth);
-	int32 PlayerTileY = TruncateFloatToInt32((TestY - Tile->UpperLeftY) / Tile->TileHeight);
-
-	if((PlayerTileX >= 0) &&(PlayerTileX < Tile->XCount) &&(PlayerTileY >= 0) &&(PlayerTileY < Tile->YCount))
+	if(Tile)
 	{
-		uint32 TileValue = GetTileIndex1D(Tile, PlayerTileX, PlayerTileY);
-		Result = (TileValue == 0);
+		if((TestTileX >= 0) &&(TestTileX < World->XCount) &&
+			(TestTileY >= 0) &&(TestTileY < World->YCount))
+		{
+			uint32 TileValue = GetTileIndex1D(World, Tile, TestTileX, TestTileY);
+			Result = (TileValue == 0);
+		}
 	}
 	return Result;
 }
 
-static bool IsValidWorldPoint (world *World, int32 TileMapX, int32 TileMapY, float TestX, float TestY)
+static bool IsValidWorldPoint (world *World, int32 TestTileMapX, int32 TestTileMapY, float TestX, float TestY)
 {
 	bool Result = false;
-	tile_map *TileMap = GetTileMap(World, TileMapX, TileMapY);
-	if(TileMap)
-	{
-		int32 PlayerTileX = TruncateFloatToInt32((TestX - TileMap->UpperLeftX) / TileMap->TileWidth);
-		int32 PlayerTileY = TruncateFloatToInt32((TestY - TileMap->UpperLeftY) / TileMap->TileHeight);
+	int32 TestTileX = TruncateFloatToInt32((TestX - World->UpperLeftX) / World->TileWidth);
+	int32 TestTileY = TruncateFloatToInt32((TestY - World->UpperLeftY) / World->TileHeight);
 
-		if((PlayerTileX >= 0) &&(PlayerTileX < TileMap->XCount) &&
-			(PlayerTileY >= 0) &&(PlayerTileY < TileMap->YCount))
-		{
-			uint32 TileValue = GetTileIndex1D(TileMap, PlayerTileX, PlayerTileY);
-			Result = (TileValue == 0);
-		}
+	if(TestTileX < 0)
+	{
+		TestTileX = World->XCount + TestTileX;
+		--TestTileMapX;
 	}
+	if(TestTileY < 0)
+	{
+		TestTileY = World->YCount + TestTileY;
+		--TestTileMapY;
+	}
+	if(TestTileX >= World->XCount)
+	{
+		TestTileX = TestTileX - World->XCount;
+		++TestTileMapX;
+	}
+	if(TestTileY < 0)
+	{
+		TestTileY = TestTileY - World->YCount;
+		++TestTileMapY;
+	}
+	tile_map *TileMap = GetTileMap(World, TestTileMapX, TestTileMapY);
+	Result = IsValidTile(World, TileMap, TestTileX, TestTileY);
 	return Result;
 }
 
@@ -200,32 +214,27 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 		{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
 	};
 	tile_map TileMaps[2][2];
-	TileMaps[0][0].UpperLeftX = -30;
-	TileMaps[0][0].UpperLeftY = 0;
-	TileMaps[0][0].TileWidth = 60;
-	TileMaps[0][0].TileHeight = 60;	
-	TileMaps[0][0].XCount = TILE_MAP_COUNT_X;
-	TileMaps[0][0].YCount = TILE_MAP_COUNT_Y;
 	TileMaps[0][0].Tiles = (uint32 *)Tiles00;
-
-	TileMaps[0][1] = TileMaps[0][0];
 	TileMaps[0][1].Tiles = (uint32 *)Tiles01;
-	
-	TileMaps[1][0] = TileMaps[0][0];
 	TileMaps[1][0].Tiles = (uint32 *)Tiles10;
-	
-	TileMaps[1][1] = TileMaps[0][0];
 	TileMaps[1][1].Tiles = (uint32 *)Tiles11;
-
-	tile_map *CurrentTileMap = &TileMaps[0][0];
 
 	world World;
 	World.TileMapXCount = 2;
-	World.TileMapYCount = 2;
-	World.TileMaps = (tile_map *)TileMaps;
-	float PlayerWidth = 0.75f * CurrentTileMap->TileWidth;
-	float PlayerHeight = CurrentTileMap->TileHeight;
-	
+	World.TileMapYCount = 2;	
+	World.XCount = TILE_MAP_COUNT_X;
+	World.YCount = TILE_MAP_COUNT_Y;
+	World.TileMaps = (tile_map *)TileMaps;	
+	World.UpperLeftX = -30;
+	World.UpperLeftY = 0;
+	World.TileWidth = 60;
+	World.TileHeight = 60;	
+
+	float PlayerWidth = 0.75f * World.TileWidth;
+	float PlayerHeight = World.TileHeight;
+
+	tile_map *CurrentTileMap = GetTileMap(&World, GameState->PlayerTileMapX, GameState->PlayerTileMapY);
+	Assert(CurrentTileMap);
 	if(!Memory->IsInitialized)
 	{
 		GameState->PlayerX = 200;
@@ -291,9 +300,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 			float NewPlayerX = GameState->PlayerX + dPlayerX * Input->deltaTime;
 			float NewPlayerY = GameState->PlayerY + dPlayerY * Input->deltaTime;
 			
-			if(IsValidTile(CurrentTileMap, NewPlayerX - 0.5f * PlayerWidth, NewPlayerY) &&
-				IsValidTile(CurrentTileMap, NewPlayerX + 0.5f * PlayerWidth, NewPlayerY) &&
-				IsValidTile(CurrentTileMap, NewPlayerX, NewPlayerY))
+			if(IsValidWorldPoint(&World, GameState->PlayerTileMapX, GameState->PlayerTileMapY, NewPlayerX - 0.5f * PlayerWidth, NewPlayerY) &&
+				IsValidWorldPoint(&World, GameState->PlayerTileMapX, GameState->PlayerTileMapY, NewPlayerX + 0.5f * PlayerWidth, NewPlayerY) &&
+				IsValidWorldPoint(&World, GameState->PlayerTileMapX, GameState->PlayerTileMapY, NewPlayerX, NewPlayerY))
 			{
 				GameState->PlayerX = NewPlayerX;
 				GameState->PlayerY = NewPlayerY;
@@ -322,12 +331,12 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 	{
 		for(int col = 0; col < 17; ++col)
 		{
-			uint32 TileID = GetTileIndex1D(CurrentTileMap, col, row);
+			uint32 TileID = GetTileIndex1D(&World, CurrentTileMap, col, row);
 			float ColorVal = (TileID == 1) ? 1.0f : 0.5f;
-			float MinX = CurrentTileMap->UpperLeftX + ((float)col) * CurrentTileMap->TileWidth;
-			float MinY = CurrentTileMap->UpperLeftY + ((float)row) * CurrentTileMap->TileHeight;
-			float MaxX = MinX + CurrentTileMap->TileWidth;
-			float MaxY = MinY + CurrentTileMap->TileHeight;
+			float MinX = World.UpperLeftX + ((float)col) * World.TileWidth;
+			float MinY = World.UpperLeftY + ((float)row) * World.TileHeight;
+			float MaxX = MinX + World.TileWidth;
+			float MaxY = MinY + World.TileHeight;
 			RenderRectangle(Buffer, MinX, MinY, MaxX, MaxY, ColorVal, ColorVal, ColorVal);
 		}
 	}

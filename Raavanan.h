@@ -28,6 +28,11 @@ inline game_controller_input *GetController (game_input *input, int ControllerIn
 
 struct tile_map
 {
+	uint32 *Tiles;
+};
+
+struct world
+{
 	int32 XCount;
 	int32 YCount;
 
@@ -35,12 +40,7 @@ struct tile_map
 	float UpperLeftY;
 	float TileWidth;
 	float TileHeight;
-
-	uint32 *Tiles;
-};
-
-struct world
-{
+	
 	int32 TileMapXCount;
 	int32 TileMapYCount;
 	tile_map *TileMaps;
@@ -49,6 +49,9 @@ struct world
 
 struct game_state
 {
+	int32 PlayerTileMapX;
+	int32 PlayerTileMapY;
+
 	float PlayerX;
 	float PlayerY;
 #if RAAVANAN_INTERNAL
