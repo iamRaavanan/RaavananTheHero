@@ -113,8 +113,8 @@ inline uint32 GetTileIndex1D(tile_map *TileMap, int32 TileX, int32 TileY)
 static bool IsValidTile(tile_map *Tile, float TestX, float TestY)
 {
 	bool Result = false;
-	int32 PlayerTileX = TruncateFloatToInt32((TestX + Tile->UpperLeftX) / Tile->TileWidth);
-	int32 PlayerTileY = TruncateFloatToInt32((TestY + Tile->UpperLeftY) / Tile->TileHeight);
+	int32 PlayerTileX = TruncateFloatToInt32((TestX - Tile->UpperLeftX) / Tile->TileWidth);
+	int32 PlayerTileY = TruncateFloatToInt32((TestY - Tile->UpperLeftY) / Tile->TileHeight);
 
 	if((PlayerTileX >= 0) &&(PlayerTileX < Tile->XCount) &&(PlayerTileY >= 0) &&(PlayerTileY < Tile->YCount))
 	{
@@ -130,8 +130,8 @@ static bool IsValidWorldPoint (world *World, int32 TileMapX, int32 TileMapY, flo
 	tile_map *TileMap = GetTileMap(World, TileMapX, TileMapY);
 	if(TileMap)
 	{
-		int32 PlayerTileX = TruncateFloatToInt32((TestX + TileMap->UpperLeftX) / TileMap->TileWidth);
-		int32 PlayerTileY = TruncateFloatToInt32((TestY + TileMap->UpperLeftY) / TileMap->TileHeight);
+		int32 PlayerTileX = TruncateFloatToInt32((TestX - TileMap->UpperLeftX) / TileMap->TileWidth);
+		int32 PlayerTileY = TruncateFloatToInt32((TestY - TileMap->UpperLeftY) / TileMap->TileHeight);
 
 		if((PlayerTileX >= 0) &&(PlayerTileX < TileMap->XCount) &&
 			(PlayerTileY >= 0) &&(PlayerTileY < TileMap->YCount))
@@ -228,8 +228,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 	
 	if(!Memory->IsInitialized)
 	{
-		GameState->PlayerX = 250;
-		GameState->PlayerY = 250;
+		GameState->PlayerX = 200;
+		GameState->PlayerY = 200;
 
 #if RAAVANAN_INTERNAL
 		char *Filename = __FILE__;
