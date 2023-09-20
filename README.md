@@ -1,5 +1,5 @@
 # RaavananTheHero
-Game made from scratch witout any licensed engine(s), or librarie(s).
+Game made from scratch without any licensed engine(s), or librarie(s).
 
 ### Note:
     - Misc folder contains Shell.bat to set the compile environemnt. 
