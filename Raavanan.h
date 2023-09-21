@@ -34,8 +34,8 @@ struct canonical_position
 	int32 TileX;
 	int32 TileY;
 	// Tile relative X & Y
-	float X;
-	float Y;
+	float RelativeX;
+	float RelativeY;
 };
 
 struct raw_position

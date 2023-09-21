@@ -142,8 +142,8 @@ inline canonical_position GetCanonicalPosition (world *World, raw_position Posit
 	float Y = Position.Y - World->UpperLeftY;
 	Result.TileX = TruncateFloatToInt32(X / World->TileWidth);
 	Result.TileY = TruncateFloatToInt32(Y / World->TileHeight);
-	Result.X = X - Result.TileX * World->TileWidth;
-	Result.Y = Y - Result.TileY * World->TileHeight;
+	Result.RelativeX = X - Result.TileX * World->TileWidth;
+	Result.RelativeY = Y - Result.TileY * World->TileHeight;
 	if(Result.TileX < 0)
 	{
 		Result.TileX = World->XCount + Result.TileX;
@@ -329,8 +329,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 				canonical_position CanonicalPos = GetCanonicalPosition(&World, PlayerPos);
 				GameState->PlayerTileMapX = CanonicalPos.TileMapX;
 				GameState->PlayerTileMapY = CanonicalPos.TileMapY;
-				GameState->PlayerX = World.UpperLeftX + World.TileWidth * CanonicalPos.TileX + CanonicalPos.X;
-				GameState->PlayerY = World.UpperLeftY + World.TileHeight * CanonicalPos.TileY + CanonicalPos.Y;
+				GameState->PlayerX = World.UpperLeftX + World.TileWidth * CanonicalPos.TileX + CanonicalPos.RelativeX;
+				GameState->PlayerY = World.UpperLeftY + World.TileHeight * CanonicalPos.TileY + CanonicalPos.RelativeY;
 			}
 			// char TextBuffer[256];
 			// sprintf_s(TextBuffer, "T-ID:%f R: %f \n", GameState->PlayerX, GameState->PlayerY);
