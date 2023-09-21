@@ -60,6 +60,13 @@ inline int32 RoundFloatToInt32(float value)
 	return Result;
 }
 
+#include "math.h"
+inline int32 FloorFloatToInt32(float value)
+{
+	int32 Result = (int32)floorf(value);
+	return Result;
+}
+
 inline int32 TruncateFloatToInt32(float value)
 {
 	int32 Result = (int32)(value);
@@ -126,34 +133,46 @@ static bool IsValidTile(world *World, tile_map *Tile, int32 TestTileX, int32 Tes
 	return Result;
 }
 
-static bool IsValidWorldPoint (world *World, int32 TestTileMapX, int32 TestTileMapY, float TestX, float TestY)
+inline canonical_position GetCanonicalPosition (world *World, raw_position Position)
+{
+	canonical_position Result;
+	Result.TileMapX = Position.TileMapX;
+	Result.TileMapY = Position.TileMapY;
+	float X = Position.X - World->UpperLeftX;
+	float Y = Position.Y - World->UpperLeftY;
+	Result.TileX = TruncateFloatToInt32(X / World->TileWidth);
+	Result.TileY = TruncateFloatToInt32(Y / World->TileHeight);
+	Result.X = X - Result.TileX * World->TileWidth;
+	Result.Y = Y - Result.TileY * World->TileHeight;
+	if(Result.TileX < 0)
+	{
+		Result.TileX = World->XCount + Result.TileX;
+		--Result.TileMapX;
+	}
+	if(Result.TileY < 0)
+	{
+		Result.TileY = World->YCount + Result.TileY;
+		--Result.TileMapY;
+	}
+	if(Result.TileX >= World->XCount)
+	{
+		Result.TileX = Result.TileX - World->XCount;
+		++Result.TileMapX;
+	}
+	if(Result.TileY >= World->YCount)
+	{
+		Result.TileY = Result.TileY - World->YCount;
+		++Result.TileMapY;
+	}
+	return Result;
+}
+
+static bool IsValidWorldPoint (world *World, raw_position TestPos)
 {
 	bool Result = false;
-	int32 TestTileX = TruncateFloatToInt32((TestX - World->UpperLeftX) / World->TileWidth);
-	int32 TestTileY = TruncateFloatToInt32((TestY - World->UpperLeftY) / World->TileHeight);
-
-	if(TestTileX < 0)
-	{
-		TestTileX = World->XCount + TestTileX;
-		--TestTileMapX;
-	}
-	if(TestTileY < 0)
-	{
-		TestTileY = World->YCount + TestTileY;
-		--TestTileMapY;
-	}
-	if(TestTileX >= World->XCount)
-	{
-		TestTileX = TestTileX - World->XCount;
-		++TestTileMapX;
-	}
-	if(TestTileY < 0)
-	{
-		TestTileY = TestTileY - World->YCount;
-		++TestTileMapY;
-	}
-	tile_map *TileMap = GetTileMap(World, TestTileMapX, TestTileMapY);
-	Result = IsValidTile(World, TileMap, TestTileX, TestTileY);
+	canonical_position CanonicalPos = GetCanonicalPosition(World, TestPos);
+	tile_map *TileMap = GetTileMap(World, CanonicalPos.TileMapX, CanonicalPos.TileMapY);
+	Result = IsValidTile(World, TileMap, CanonicalPos.TileX, CanonicalPos.TileY);
 	return Result;
 }
 
@@ -215,8 +234,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 	};
 	tile_map TileMaps[2][2];
 	TileMaps[0][0].Tiles = (uint32 *)Tiles00;
-	TileMaps[0][1].Tiles = (uint32 *)Tiles01;
-	TileMaps[1][0].Tiles = (uint32 *)Tiles10;
+	TileMaps[0][1].Tiles = (uint32 *)Tiles10;
+	TileMaps[1][0].Tiles = (uint32 *)Tiles01;
 	TileMaps[1][1].Tiles = (uint32 *)Tiles11;
 
 	world World;
@@ -237,8 +256,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 	Assert(CurrentTileMap);
 	if(!Memory->IsInitialized)
 	{
-		GameState->PlayerX = 200;
-		GameState->PlayerY = 200;
+		GameState->PlayerX = 150;
+		GameState->PlayerY = 150;
 
 #if RAAVANAN_INTERNAL
 		char *Filename = __FILE__;
@@ -295,17 +314,23 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 			{
 				dPlayerX = -1.0f;
 			}
-			dPlayerX *= 64.0f;
-			dPlayerY *= 64.0f;
+			dPlayerX *= 128.0f;
+			dPlayerY *= 128.0f;
 			float NewPlayerX = GameState->PlayerX + dPlayerX * Input->deltaTime;
 			float NewPlayerY = GameState->PlayerY + dPlayerY * Input->deltaTime;
-			
-			if(IsValidWorldPoint(&World, GameState->PlayerTileMapX, GameState->PlayerTileMapY, NewPlayerX - 0.5f * PlayerWidth, NewPlayerY) &&
-				IsValidWorldPoint(&World, GameState->PlayerTileMapX, GameState->PlayerTileMapY, NewPlayerX + 0.5f * PlayerWidth, NewPlayerY) &&
-				IsValidWorldPoint(&World, GameState->PlayerTileMapX, GameState->PlayerTileMapY, NewPlayerX, NewPlayerY))
+
+			raw_position PlayerPos = {GameState->PlayerTileMapX, GameState->PlayerTileMapY, NewPlayerX, NewPlayerY};
+			raw_position PlayerLeft = PlayerPos;
+			PlayerLeft.X -= 0.5f * PlayerWidth;
+			raw_position PlayerRight = PlayerPos;
+			PlayerRight.X += 0.5f * PlayerWidth;
+			if(IsValidWorldPoint(&World, PlayerPos) && IsValidWorldPoint(&World, PlayerLeft) && IsValidWorldPoint(&World, PlayerRight))
 			{
-				GameState->PlayerX = NewPlayerX;
-				GameState->PlayerY = NewPlayerY;
+				canonical_position CanonicalPos = GetCanonicalPosition(&World, PlayerPos);
+				GameState->PlayerTileMapX = CanonicalPos.TileMapX;
+				GameState->PlayerTileMapY = CanonicalPos.TileMapY;
+				GameState->PlayerX = World.UpperLeftX + World.TileWidth * CanonicalPos.TileX + CanonicalPos.X;
+				GameState->PlayerY = World.UpperLeftY + World.TileHeight * CanonicalPos.TileY + CanonicalPos.Y;
 			}
 			// char TextBuffer[256];
 			// sprintf_s(TextBuffer, "T-ID:%f R: %f \n", GameState->PlayerX, GameState->PlayerY);

@@ -26,6 +26,27 @@ inline game_controller_input *GetController (game_input *input, int ControllerIn
 	return Result;
 }
 
+struct canonical_position
+{
+	int32 TileMapX;
+	int32 TileMapY;
+
+	int32 TileX;
+	int32 TileY;
+	// Tile relative X & Y
+	float X;
+	float Y;
+};
+
+struct raw_position
+{
+	int32 TileMapX;
+	int32 TileMapY;
+	// Tile map relative X & Y
+	float X;
+	float Y;	
+};
+
 struct tile_map
 {
 	uint32 *Tiles;
