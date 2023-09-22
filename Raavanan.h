@@ -54,13 +54,14 @@ struct tile_map
 
 struct world
 {
+	float TileSideInMeters;
+	int32 TileSideInPixels; // Tile width and Height
+
 	int32 XCount;
 	int32 YCount;
 
 	float UpperLeftX;
 	float UpperLeftY;
-	float TileWidth;
-	float TileHeight;
 	
 	int32 TileMapXCount;
 	int32 TileMapYCount;

@@ -1,4 +1,4 @@
-#include "Raavanan.h"
+#include "Raavanan_intrinsics.h"
 #include <stdio.h>
 #include <windows.h>
 static void UpdateSound(game_state *GameState, game_sound_buffer *SoundBuffer, int ToneHz)
@@ -46,31 +46,6 @@ static void RenderGradiant(game_offscreen_buffer *Buffer, int xOffset, int yOffs
 		}
 		Row += Buffer->Pitch;
 	}
-}
-
-inline uint32 RoundFloatToUInt32(float value)
-{
-	uint32 Result = (uint32)(value + 0.5f);
-	return Result;
-}
-
-inline int32 RoundFloatToInt32(float value)
-{
-	int32 Result = (int32)(value + 0.5f);
-	return Result;
-}
-
-#include "math.h"
-inline int32 FloorFloatToInt32(float value)
-{
-	int32 Result = (int32)floorf(value);
-	return Result;
-}
-
-inline int32 TruncateFloatToInt32(float value)
-{
-	int32 Result = (int32)(value);
-	return Result;
 }
 
 static void RenderRectangle(game_offscreen_buffer *Buffer, float realMinX, float realMinY, float realMaxX, float realMaxY, float R, float G, float B)
@@ -140,10 +115,10 @@ inline canonical_position GetCanonicalPosition (world *World, raw_position Posit
 	Result.TileMapY = Position.TileMapY;
 	float X = Position.X - World->UpperLeftX;
 	float Y = Position.Y - World->UpperLeftY;
-	Result.TileX = TruncateFloatToInt32(X / World->TileWidth);
-	Result.TileY = TruncateFloatToInt32(Y / World->TileHeight);
-	Result.RelativeX = X - Result.TileX * World->TileWidth;
-	Result.RelativeY = Y - Result.TileY * World->TileHeight;
+	Result.TileX = TruncateFloatToInt32(X / World->TileSideInPixels);
+	Result.TileY = TruncateFloatToInt32(Y / World->TileSideInPixels);
+	Result.RelativeX = X - Result.TileX * World->TileSideInPixels;
+	Result.RelativeY = Y - Result.TileY * World->TileSideInPixels;
 	if(Result.TileX < 0)
 	{
 		Result.TileX = World->XCount + Result.TileX;
@@ -243,14 +218,15 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 	World.TileMapYCount = 2;	
 	World.XCount = TILE_MAP_COUNT_X;
 	World.YCount = TILE_MAP_COUNT_Y;
+	World.TileSideInMeters = 1.4f;
+	World.TileSideInPixels = 60;
 	World.TileMaps = (tile_map *)TileMaps;	
-	World.UpperLeftX = -30;
+	
 	World.UpperLeftY = 0;
-	World.TileWidth = 60;
-	World.TileHeight = 60;	
+	World.UpperLeftX = (float)-World.TileSideInPixels/2;
 
-	float PlayerWidth = 0.75f * World.TileWidth;
-	float PlayerHeight = World.TileHeight;
+	float PlayerWidth = 0.75f * World.TileSideInPixels;
+	float PlayerHeight = World.TileSideInPixels;
 
 	tile_map *CurrentTileMap = GetTileMap(&World, GameState->PlayerTileMapX, GameState->PlayerTileMapY);
 	Assert(CurrentTileMap);
@@ -329,8 +305,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 				canonical_position CanonicalPos = GetCanonicalPosition(&World, PlayerPos);
 				GameState->PlayerTileMapX = CanonicalPos.TileMapX;
 				GameState->PlayerTileMapY = CanonicalPos.TileMapY;
-				GameState->PlayerX = World.UpperLeftX + World.TileWidth * CanonicalPos.TileX + CanonicalPos.RelativeX;
-				GameState->PlayerY = World.UpperLeftY + World.TileHeight * CanonicalPos.TileY + CanonicalPos.RelativeY;
+				GameState->PlayerX = World.UpperLeftX + World.TileSideInPixels * CanonicalPos.TileX + CanonicalPos.RelativeX;
+				GameState->PlayerY = World.UpperLeftY + World.TileSideInPixels * CanonicalPos.TileY + CanonicalPos.RelativeY;
 			}
 			// char TextBuffer[256];
 			// sprintf_s(TextBuffer, "T-ID:%f R: %f \n", GameState->PlayerX, GameState->PlayerY);
@@ -358,10 +334,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 		{
 			uint32 TileID = GetTileIndex1D(&World, CurrentTileMap, col, row);
 			float ColorVal = (TileID == 1) ? 1.0f : 0.5f;
-			float MinX = World.UpperLeftX + ((float)col) * World.TileWidth;
-			float MinY = World.UpperLeftY + ((float)row) * World.TileHeight;
-			float MaxX = MinX + World.TileWidth;
-			float MaxY = MinY + World.TileHeight;
+			float MinX = World.UpperLeftX + ((float)col) * World.TileSideInPixels;
+			float MinY = World.UpperLeftY + ((float)row) * World.TileSideInPixels;
+			float MaxX = MinX + World.TileSideInPixels;
+			float MaxY = MinY + World.TileSideInPixels;
 			RenderRectangle(Buffer, MinX, MinY, MaxX, MaxY, ColorVal, ColorVal, ColorVal);
 		}
 	}
