@@ -38,15 +38,6 @@ struct canonical_position
 	float RelativeY;
 };
 
-struct raw_position
-{
-	int32 TileMapX;
-	int32 TileMapY;
-	// Tile map relative X & Y
-	float X;
-	float Y;	
-};
-
 struct tile_map
 {
 	uint32 *Tiles;
@@ -56,7 +47,8 @@ struct world
 {
 	float TileSideInMeters;
 	int32 TileSideInPixels; // Tile width and Height
-
+	float MeterToPixels;
+	
 	int32 XCount;
 	int32 YCount;
 
@@ -71,11 +63,7 @@ struct world
 
 struct game_state
 {
-	int32 PlayerTileMapX;
-	int32 PlayerTileMapY;
-
-	float PlayerX;
-	float PlayerY;
+	canonical_position PlayerP;
 #if RAAVANAN_INTERNAL
 	int ToneHz;
 	int XOffset;
