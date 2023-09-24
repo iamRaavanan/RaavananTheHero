@@ -26,44 +26,48 @@ inline game_controller_input *GetController (game_input *input, int ControllerIn
 	return Result;
 }
 
-struct canonical_position
+struct tile_chunk_position
 {
-	int32 TileMapX;
-	int32 TileMapY;
+	uint32 TileChunkX;
+	uint32 TileChunkY;
 
-	int32 TileX;
-	int32 TileY;
+	uint32 RelTileX;
+	uint32 RelTileY;
+};
+
+struct world_position
+{
+	uint32 AbsTileX;
+	uint32 AbsTileY;
 	// Tile relative X & Y
 	float RelativeX;
 	float RelativeY;
 };
 
-struct tile_map
+struct tile_chunk
 {
 	uint32 *Tiles;
 };
 
 struct world
 {
+	uint32 ChunkShift;
+	uint32 ChunkMask;
+	uint32 ChunkDim;
+
 	float TileSideInMeters;
 	int32 TileSideInPixels; // Tile width and Height
 	float MeterToPixels;
 	
-	int32 XCount;
-	int32 YCount;
-
-	float UpperLeftX;
-	float UpperLeftY;
-	
-	int32 TileMapXCount;
-	int32 TileMapYCount;
-	tile_map *TileMaps;
+	int32 TileChunkXCount;
+	int32 TileChunkYCount;
+	tile_chunk *TileChunks;
 };
 
 
 struct game_state
 {
-	canonical_position PlayerP;
+	world_position PlayerP;
 #if RAAVANAN_INTERNAL
 	int ToneHz;
 	int XOffset;
