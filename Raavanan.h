@@ -26,48 +26,17 @@ inline game_controller_input *GetController (game_input *input, int ControllerIn
 	return Result;
 }
 
-struct tile_chunk_position
-{
-	uint32 TileChunkX;
-	uint32 TileChunkY;
-
-	uint32 RelTileX;
-	uint32 RelTileY;
-};
-
-struct world_position
-{
-	uint32 AbsTileX;
-	uint32 AbsTileY;
-	// Tile relative X & Y
-	float RelativeX;
-	float RelativeY;
-};
-
-struct tile_chunk
-{
-	uint32 *Tiles;
-};
-
+#include "Raavanan_tile.h"
 struct world
 {
-	uint32 ChunkShift;
-	uint32 ChunkMask;
-	uint32 ChunkDim;
-
-	float TileSideInMeters;
-	int32 TileSideInPixels; // Tile width and Height
-	float MeterToPixels;
-	
-	int32 TileChunkXCount;
-	int32 TileChunkYCount;
-	tile_chunk *TileChunks;
+	tile_map *TileMap;
 };
 
 
 struct game_state
 {
-	world_position PlayerP;
+	world *World;
+	tile_map_position PlayerP;
 #if RAAVANAN_INTERNAL
 	int ToneHz;
 	int XOffset;

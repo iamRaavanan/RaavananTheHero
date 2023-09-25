@@ -4,13 +4,13 @@
 
 inline uint32 RoundFloatToUInt32(float value)
 {
-	uint32 Result = (uint32)(value + 0.5f);
+	uint32 Result = (uint32)roundf(value);
 	return Result;
 }
 
 inline int32 RoundFloatToInt32(float value)
 {
-	int32 Result = (int32)(value + 0.5f);
+	int32 Result = (int32)roundf(value);
 	return Result;
 }
 
