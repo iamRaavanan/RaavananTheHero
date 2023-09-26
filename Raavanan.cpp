@@ -74,64 +74,62 @@ static void RenderRectangle(game_offscreen_buffer *Buffer, float realMinX, float
 		Row += Buffer->Pitch;
 	}
 }
+static void InitializeArena (memory_arena *MemoryArena, size_t Size, uint8 *BasePtr)
+{
+	MemoryArena->Size = Size;
+	MemoryArena->Base = BasePtr;
+	MemoryArena->UsedSpace = 0;
+}
+
+#define PushStruct(MemoryArena, type) (type *)PushSize_(MemoryArena, sizeof(type))
+#define PushArray(MemoryArena, Count, type) (type *)PushSize_(MemoryArena, (Count * sizeof(type)))
+void *PushSize_(memory_arena *MemoryArena, size_t Size)
+{
+	Assert((MemoryArena->UsedSpace + Size) < MemoryArena->Size);
+	void *Result = MemoryArena->Base + MemoryArena->UsedSpace;
+	MemoryArena->UsedSpace += Size;
+	return Result;
+}
 
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
 	Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
 	game_state *GameState = (game_state *)Memory->PermanentStorage;
 
-#define TILE_MAP_COUNT_X 256
-#define TILE_MAP_COUNT_Y 256
-	
-	uint32 TempTileData[TILE_MAP_COUNT_Y][TILE_MAP_COUNT_X] =
-	{
-		{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-		{1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1},
-		{1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1},
-		{1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1},
-		{1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1},
-		{1, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1},
-		{1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1},
-		{1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1},
-		{1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1},
-		{1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1},
-		{1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-		{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-		{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-		{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-		{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-		{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-		{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
-		{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
-	};
 	float PlayerHeight = 1.4f;
-	float PlayerWidth = 0.75f * PlayerHeight;
+	float PlayerWidth = 0.75f * PlayerHeight;	
+
 	if(!Memory->IsInitialized)
 	{
-
 		GameState->PlayerP.AbsTileX = 3;
 		GameState->PlayerP.AbsTileY = 2;
 		GameState->PlayerP.RelativeX = 5.0f;
 		GameState->PlayerP.RelativeY = 5.0f;
 		
-		GameState->World = ;
+		InitializeArena (&GameState->WorldArena, (size_t)Memory->PermanentStorageSize - sizeof(game_state), (uint8 *)Memory->PermanentStorage + sizeof(game_state));
+		GameState->World = PushStruct(&GameState->WorldArena, world);
 		world *World = GameState->World;
+		World->TileMap = PushStruct(&GameState->WorldArena, tile_map);
 		tile_map *TileMap = World->TileMap;
 		
-		TileMap->ChunkShift = 8;
+		TileMap->ChunkShift = 4;
 		TileMap->ChunkMask = (1 << TileMap->ChunkShift) - 1;	// which is equal to assigning 0xFF
-		TileMap->ChunkDim = 256;
+		TileMap->ChunkDim = (1 << TileMap->ChunkShift);	// Which is equal to 256
 
-		TileMap->TileChunkXCount = 1;
-		TileMap->TileChunkYCount = 1;
-
+		TileMap->TileChunkXCount = 128;
+		TileMap->TileChunkYCount = 128;
+		TileMap->TileChunks = PushArray(&GameState->WorldArena, TileMap->TileChunkXCount*TileMap->TileChunkYCount, tile_chunk);
+		for (uint32 Y = 0; Y < TileMap->TileChunkYCount; ++Y)
+		{
+			for (uint32 X = 0; X < TileMap->TileChunkXCount; ++X)
+			{
+				TileMap->TileChunks[Y * TileMap->TileChunkXCount + X].Tiles = PushArray(&GameState->WorldArena, TileMap->ChunkDim * TileMap->ChunkDim, uint32);
+			}
+		}
 		TileMap->TileSideInMeters = 1.4f;
 		TileMap->TileSideInPixels = 60;
 		TileMap->MeterToPixels = ((float)TileMap->TileSideInPixels / (float)TileMap->TileSideInMeters);
-
-		tile_chunk TileChunk;
-		TileChunk.Tiles = (uint32 *)TempTileData;
-		TileMap->TileChunks = &TileChunk;		
+		
 		
 		float LowerLeftX = (float)-TileMap->TileSideInPixels/2;
 		float LowerLeftY = (float)Buffer->Height;
@@ -148,7 +146,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 					{
 						uint32 AbsTileX = ScreenX * TilesPerWidth + TileX;
 						uint32 AbsTileY = ScreenY * TilesPerHeight + TileY;
-						SetTileValue (TileMap, AbsTileX, AbsTileY);
+						SetTileValue (&GameState->WorldArena, TileMap, AbsTileX, AbsTileY, ((TileX == TileY) && (TileY % 2)) ? 1 : 0 );
 					}
 				}
 			}
@@ -263,7 +261,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 		{
 			uint32 Column = GameState->PlayerP.AbsTileX + Relcol;
 			uint32 Row = GameState->PlayerP.AbsTileY + Relrow;
-			uint32 TileID = GetTileValue(&TileMap, Column, Row);
+			uint32 TileID = GetTileValue(TileMap, Column, Row);
 			float ColorVal = (TileID == 1) ? 1.0f : 0.5f;
 			ColorVal = ((Column == GameState->PlayerP.AbsTileX) && (Row == GameState->PlayerP.AbsTileY)) ? 0.0f : ColorVal;
 			float CenterX = ScreenCenterX - TileMap->MeterToPixels * GameState->PlayerP.RelativeX + ((float)Relcol) * TileMap->TileSideInPixels;

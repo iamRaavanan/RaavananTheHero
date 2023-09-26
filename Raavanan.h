@@ -27,6 +27,14 @@ inline game_controller_input *GetController (game_input *input, int ControllerIn
 }
 
 #include "Raavanan_tile.h"
+
+struct memory_arena
+{
+	size_t Size;
+	uint8 *Base;
+	size_t UsedSpace;
+};
+
 struct world
 {
 	tile_map *TileMap;
@@ -36,6 +44,7 @@ struct world
 struct game_state
 {
 	world *World;
+	memory_arena WorldArena;
 	tile_map_position PlayerP;
 #if RAAVANAN_INTERNAL
 	int ToneHz;

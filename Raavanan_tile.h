@@ -34,8 +34,8 @@ struct tile_map
 	int32 TileSideInPixels; // Tile width and Height
 	float MeterToPixels;
 	
-	int32 TileChunkXCount;
-	int32 TileChunkYCount;
+	uint32 TileChunkXCount;
+	uint32 TileChunkYCount;
 	tile_chunk *TileChunks;
 };
 #define RAAVANAN_TILE_H
