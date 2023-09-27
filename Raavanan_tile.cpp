@@ -50,7 +50,7 @@ inline void SetTileIndex1D(tile_map *tilemap, tile_chunk *TileChunk, uint32 Tile
 static uint32 GetTileValue(tile_map *tilemap, tile_chunk *TileChunk, uint32 TestTileX, uint32 TestTileY)
 {
 	uint32 TileChunkValue = 0;
-	if(TileChunk)
+	if(TileChunk && TileChunk->Tiles)
 	{
 		TileChunkValue = GetTileIndex1D(tilemap, TileChunk, TestTileX, TestTileY);
 	}
@@ -59,8 +59,7 @@ static uint32 GetTileValue(tile_map *tilemap, tile_chunk *TileChunk, uint32 Test
 
 static void SetTileValue(tile_map *tilemap, tile_chunk *TileChunk, uint32 TestTileX, uint32 TestTileY, uint32 TileValue)
 {
-	uint32 TileChunkValue = 0;
-	if(TileChunk)
+	if(TileChunk && TileChunk->Tiles)
 	{
 		SetTileIndex1D(tilemap, TileChunk, TestTileX, TestTileY, TileValue);
 	}
@@ -86,8 +85,8 @@ static uint32 GetTileValue (tile_map *tilemap, uint32 AbsTileX, uint32 AbsTileY)
 
 static bool IsValidTileMapPoint (tile_map *tilemap, tile_map_position CanonicalPos)
 {
-	uint32 TileChunkValue = GetTileValue (tilemap, CanonicalPos.AbsTileX, CanonicalPos.AbsTileY);
-	bool Result = (TileChunkValue == 0);
+	uint32 TileChunkValue = GetTileValue (tilemap,  CanonicalPos.AbsTileX, CanonicalPos.AbsTileY);
+	bool Result = (TileChunkValue == 1);
 	return Result;
 }
 
@@ -95,6 +94,15 @@ static void SetTileValue (memory_arena *MemoryArena, tile_map *TileMap, uint32 A
 {
 	tile_chunk_position ChunkPos = GetChunkPositionFor(TileMap, AbsTileX, AbsTileY);
 	tile_chunk *TileChunk = GetTileChunk(TileMap, ChunkPos.TileChunkX, ChunkPos.TileChunkY);
-	Assert(TileChunk);	
+	Assert(TileChunk);
+	if(!TileChunk->Tiles)
+	{
+		uint32 TileCount = TileMap->ChunkDim * TileMap->ChunkDim;
+		TileChunk->Tiles = PushArray(MemoryArena, TileCount, uint32);
+		for (uint32 TileIndex = 0; TileIndex < TileCount; ++TileIndex)
+		{
+			TileChunk->Tiles[TileIndex] = 1;
+		}
+	}
 	SetTileValue(TileMap, TileChunk, ChunkPos.RelTileX, ChunkPos.RelTileY, TileValue);
 }

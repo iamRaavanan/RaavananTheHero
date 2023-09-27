@@ -35,6 +35,16 @@ struct memory_arena
 	size_t UsedSpace;
 };
 
+#define PushStruct(MemoryArena, type) (type *)PushSize_(MemoryArena, sizeof(type))
+#define PushArray(MemoryArena, Count, type) (type *)PushSize_(MemoryArena, (Count * sizeof(type)))
+void *PushSize_(memory_arena *MemoryArena, size_t Size)
+{
+	Assert((MemoryArena->UsedSpace + Size) < MemoryArena->Size);
+	void *Result = MemoryArena->Base + MemoryArena->UsedSpace;
+	MemoryArena->UsedSpace += Size;
+	return Result;
+}
+
 struct world
 {
 	tile_map *TileMap;

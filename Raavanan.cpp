@@ -1,4 +1,5 @@
 #include "Raavanan_intrinsics.h"
+#include "Raavanan_random.h"
 #include "Raavanan_tile.cpp"
 #include <stdio.h>
 #include <windows.h>
@@ -81,16 +82,6 @@ static void InitializeArena (memory_arena *MemoryArena, size_t Size, uint8 *Base
 	MemoryArena->UsedSpace = 0;
 }
 
-#define PushStruct(MemoryArena, type) (type *)PushSize_(MemoryArena, sizeof(type))
-#define PushArray(MemoryArena, Count, type) (type *)PushSize_(MemoryArena, (Count * sizeof(type)))
-void *PushSize_(memory_arena *MemoryArena, size_t Size)
-{
-	Assert((MemoryArena->UsedSpace + Size) < MemoryArena->Size);
-	void *Result = MemoryArena->Base + MemoryArena->UsedSpace;
-	MemoryArena->UsedSpace += Size;
-	return Result;
-}
-
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
 	Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
@@ -119,37 +110,73 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 		TileMap->TileChunkXCount = 128;
 		TileMap->TileChunkYCount = 128;
 		TileMap->TileChunks = PushArray(&GameState->WorldArena, TileMap->TileChunkXCount*TileMap->TileChunkYCount, tile_chunk);
-		for (uint32 Y = 0; Y < TileMap->TileChunkYCount; ++Y)
-		{
-			for (uint32 X = 0; X < TileMap->TileChunkXCount; ++X)
-			{
-				TileMap->TileChunks[Y * TileMap->TileChunkXCount + X].Tiles = PushArray(&GameState->WorldArena, TileMap->ChunkDim * TileMap->ChunkDim, uint32);
-			}
-		}
-		TileMap->TileSideInMeters = 1.4f;
-		TileMap->TileSideInPixels = 60;
-		TileMap->MeterToPixels = ((float)TileMap->TileSideInPixels / (float)TileMap->TileSideInMeters);
 		
+		TileMap->TileSideInMeters = 1.4f;		
 		
-		float LowerLeftX = (float)-TileMap->TileSideInPixels/2;
-		float LowerLeftY = (float)Buffer->Height;
-		
+		uint32 RandomNumberIndex = 0;
 		uint32 TilesPerWidth = 17;
 		uint32 TilesPerHeight = 9;
-		for (uint32 ScreenY = 0; ScreenY < 32; ++ScreenY)
+		uint32 ScreenY = 0;
+		uint32 ScreenX = 0;
+
+		bool DoorLeft = false;
+		bool DoorRight = false;
+		bool DoorTop = false;
+		bool DoorBottom = false;
+
+		for (uint32 ScreenIndex = 0; ScreenIndex < 100; ++ScreenIndex)
 		{
-			for (uint32 ScreenX = 0; ScreenX < 32; ++ScreenX)
+			Assert(RandomNumberIndex < ArrayCount(RandomNumberTable));
+			uint32 RandomChoice = RandomNumberTable[RandomNumberIndex++] % 2;
+			if(RandomChoice == 0)
 			{
-				for (uint32 TileY = 0; TileY < TilesPerWidth; ++TileY)
+				DoorRight = true;
+			}
+			else
+			{
+				DoorTop = true;
+			}
+			
+			for (uint32 TileY = 0; TileY < TilesPerHeight; ++TileY)
+			{
+				for (uint32 TileX = 0; TileX < TilesPerWidth; ++TileX)
 				{
-					for (uint32 TileX = 0; TileX < TilesPerHeight; ++TileX)
+					uint32 AbsTileX = ScreenX * TilesPerWidth + TileX;
+					uint32 AbsTileY = ScreenY * TilesPerHeight + TileY;
+					uint32 TileValue = 1;
+					if((TileX == 0) && (!DoorLeft || (TileY != (TilesPerHeight/2))))
 					{
-						uint32 AbsTileX = ScreenX * TilesPerWidth + TileX;
-						uint32 AbsTileY = ScreenY * TilesPerHeight + TileY;
-						SetTileValue (&GameState->WorldArena, TileMap, AbsTileX, AbsTileY, ((TileX == TileY) && (TileY % 2)) ? 1 : 0 );
+						TileValue = 2;
 					}
+					if((TileX == (TilesPerWidth - 1)) && (!DoorRight || (TileY != (TilesPerHeight/2))))
+					{
+						TileValue = 2;
+					}
+					if((TileY == 0) && (!DoorBottom || (TileX != (TilesPerWidth/2))))
+					{
+						TileValue = 2;
+					}
+					if((TileY == (TilesPerHeight - 1)) && (!DoorTop || (TileX != (TilesPerWidth/2))))
+					{
+						TileValue = 2;
+					}
+					SetTileValue (&GameState->WorldArena, TileMap, AbsTileX, AbsTileY, TileValue);
 				}
 			}
+			DoorLeft = DoorRight;
+			DoorBottom = DoorTop;
+			DoorRight = false;
+			DoorTop = false;
+			
+			if (RandomChoice == 0)
+			{
+				ScreenX += 1;
+			}
+			else
+			{
+				ScreenY += 1;
+			}
+			
 		}
 #if RAAVANAN_INTERNAL
 		char *Filename = __FILE__;
@@ -168,6 +195,12 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 	}
 	world *World = GameState->World;
 	tile_map *TileMap = World->TileMap;
+	// Tile width and Height
+	int32 TileSideInPixels = 60;
+	float MeterToPixels = ((float)TileSideInPixels / (float)TileMap->TileSideInMeters);		
+	
+	float LowerLeftX = (float)-TileSideInPixels/2;
+	float LowerLeftY = (float)Buffer->Height;
 	for(int ControllerIndex = 0; ControllerIndex < ArrayCount(Input->Controllers); ControllerIndex++)
 	{
 		game_controller_input *Controller = GetController(Input, ControllerIndex);
@@ -262,24 +295,27 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 			uint32 Column = GameState->PlayerP.AbsTileX + Relcol;
 			uint32 Row = GameState->PlayerP.AbsTileY + Relrow;
 			uint32 TileID = GetTileValue(TileMap, Column, Row);
-			float ColorVal = (TileID == 1) ? 1.0f : 0.5f;
-			ColorVal = ((Column == GameState->PlayerP.AbsTileX) && (Row == GameState->PlayerP.AbsTileY)) ? 0.0f : ColorVal;
-			float CenterX = ScreenCenterX - TileMap->MeterToPixels * GameState->PlayerP.RelativeX + ((float)Relcol) * TileMap->TileSideInPixels;
-			float CenterY = ScreenCenterY + TileMap->MeterToPixels * GameState->PlayerP.RelativeY - ((float)Relrow) * TileMap->TileSideInPixels;
-			float MinX = CenterX - 0.5f * TileMap->TileSideInPixels;
-			float MinY = CenterY - 0.5f * TileMap->TileSideInPixels;
-			float MaxX = CenterX + 0.5f * TileMap->TileSideInPixels;
-			float MaxY = CenterY + 0.5f * TileMap->TileSideInPixels;
-			RenderRectangle(Buffer, MinX, MinY, MaxX, MaxY, ColorVal, ColorVal, ColorVal);
+			if(TileID > 0)
+			{
+				float ColorVal = (TileID == 2) ? 1.0f : 0.5f;
+				ColorVal = ((Column == GameState->PlayerP.AbsTileX) && (Row == GameState->PlayerP.AbsTileY)) ? 0.0f : ColorVal;
+				float CenterX = ScreenCenterX - MeterToPixels * GameState->PlayerP.RelativeX + ((float)Relcol) * TileSideInPixels;
+				float CenterY = ScreenCenterY + MeterToPixels * GameState->PlayerP.RelativeY - ((float)Relrow) * TileSideInPixels;
+				float MinX = CenterX - 0.5f * TileSideInPixels;
+				float MinY = CenterY - 0.5f * TileSideInPixels;
+				float MaxX = CenterX + 0.5f * TileSideInPixels;
+				float MaxY = CenterY + 0.5f * TileSideInPixels;
+				RenderRectangle(Buffer, MinX, MinY, MaxX, MaxY, ColorVal, ColorVal, ColorVal);
+			}			
 		}
 	}
     //RenderGradiant(Buffer, GameState->XOffset, GameState->YOffset);
 	float PlayerR = 1.0f;
 	float PlayerG = 0.4f;
 	float PlayerB = 0.7f;	
-	float PlayerLeft = ScreenCenterX - 0.5f * TileMap->MeterToPixels * PlayerWidth;
-	float PlayerTop = ScreenCenterY - TileMap->MeterToPixels * PlayerHeight;
-	RenderRectangle(Buffer, PlayerLeft, PlayerTop, PlayerLeft + TileMap->MeterToPixels * PlayerWidth, PlayerTop + TileMap->MeterToPixels * PlayerHeight, PlayerR, PlayerG, PlayerB);
+	float PlayerLeft = ScreenCenterX - 0.5f * MeterToPixels * PlayerWidth;
+	float PlayerTop = ScreenCenterY - MeterToPixels * PlayerHeight;
+	RenderRectangle(Buffer, PlayerLeft, PlayerTop, PlayerLeft + MeterToPixels * PlayerWidth, PlayerTop + MeterToPixels * PlayerHeight, PlayerR, PlayerG, PlayerB);
 }
 
 extern "C" GET_GAME_SOUND_SAMPLES(GetGameSoundSamples)
