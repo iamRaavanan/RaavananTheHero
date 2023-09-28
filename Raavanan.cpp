@@ -133,8 +133,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 		{
 			Assert(RandomNumberIndex < ArrayCount(RandomNumberTable));
 			uint32 RandomChoice = (RandomNumberTable[RandomNumberIndex++] % ((DoorUp || DoorDown) ? 2 : 3));
+			bool CreatedZDoor = false;
 			if(RandomChoice == 2)
 			{
+				CreatedZDoor = true;
 				if(AbsTileZ == 0)	
 				{
 					DoorUp = true;
@@ -193,15 +195,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 			}
 			DoorLeft = DoorRight;
 			DoorBottom = DoorTop;
-			if(DoorUp)
+			if(CreatedZDoor)
 			{
-				DoorDown = true;
-				DoorUp = false;
-			}
-			else if(DoorDown)
-			{
-				DoorUp = true;
-				DoorDown = false;
+				DoorDown = !DoorDown;
+				DoorUp = !DoorUp;
 			}
 			else
 			{
@@ -312,6 +309,18 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 			
 			if(IsValidTileMapPoint(TileMap, NewPlayerP) && IsValidTileMapPoint(TileMap, PlayerLeft) && IsValidTileMapPoint(TileMap, PlayerRight))
 			{
+				if(!AreOnSameTile(&GameState->PlayerP, &NewPlayerP))
+				{
+					uint32 NewTileValue = GetTileValue(TileMap, NewPlayerP);
+					if(NewTileValue == 3)
+					{
+						++NewPlayerP.AbsTileZ;
+					}
+					else if (NewTileValue == 4)
+					{
+						--NewPlayerP.AbsTileZ;
+					}
+				}
 				GameState->PlayerP = NewPlayerP;
 			}
 			// char TextBuffer[256];

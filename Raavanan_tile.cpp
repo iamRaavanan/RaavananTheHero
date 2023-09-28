@@ -84,10 +84,16 @@ static uint32 GetTileValue (tile_map *tilemap, uint32 AbsTileX, uint32 AbsTileY,
 	return TileChunkValue;
 }
 
+static uint32 GetTileValue (tile_map *tilemap, tile_map_position Pos)
+{
+	uint32 TileValue = GetTileValue(tilemap, Pos.AbsTileX, Pos.AbsTileY, Pos.AbsTileZ);
+	return TileValue;
+}
+
 static bool IsValidTileMapPoint (tile_map *tilemap, tile_map_position CanonicalPos)
 {
-	uint32 TileChunkValue = GetTileValue (tilemap,  CanonicalPos.AbsTileX, CanonicalPos.AbsTileY, CanonicalPos.AbsTileZ);
-	bool Result = (TileChunkValue == 1);
+	uint32 TileChunkValue = GetTileValue (tilemap,  CanonicalPos);
+	bool Result = ((TileChunkValue == 1) || (TileChunkValue == 3) || (TileChunkValue == 4));
 	return Result;
 }
 
@@ -106,4 +112,10 @@ static void SetTileValue (memory_arena *MemoryArena, tile_map *TileMap, uint32 A
 		}
 	}
 	SetTileValue(TileMap, TileChunk, ChunkPos.RelTileX, ChunkPos.RelTileY, TileValue);
+}
+
+inline bool AreOnSameTile(tile_map_position *A, tile_map_position *B)
+{
+	bool Result = ((A->AbsTileX == B->AbsTileX) && (A->AbsTileY == B->AbsTileY) && (A->AbsTileZ == B->AbsTileZ));
+	return Result;
 }
