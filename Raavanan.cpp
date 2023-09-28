@@ -109,7 +109,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
 		TileMap->TileChunkXCount = 128;
 		TileMap->TileChunkYCount = 128;
-		TileMap->TileChunks = PushArray(&GameState->WorldArena, TileMap->TileChunkXCount*TileMap->TileChunkYCount, tile_chunk);
+		TileMap->TileChunkZCount = 2;
+		TileMap->TileChunks = PushArray(&GameState->WorldArena, 
+					TileMap->TileChunkXCount * TileMap->TileChunkYCount * TileMap->TileChunkZCount, tile_chunk);
 		
 		TileMap->TileSideInMeters = 1.4f;		
 		
@@ -123,12 +125,27 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 		bool DoorRight = false;
 		bool DoorTop = false;
 		bool DoorBottom = false;
+		bool DoorUp = false;
+		bool DoorDown = false;
+		uint32 AbsTileZ = 0;
 
 		for (uint32 ScreenIndex = 0; ScreenIndex < 100; ++ScreenIndex)
 		{
 			Assert(RandomNumberIndex < ArrayCount(RandomNumberTable));
-			uint32 RandomChoice = RandomNumberTable[RandomNumberIndex++] % 2;
-			if(RandomChoice == 0)
+			uint32 RandomChoice = (RandomNumberTable[RandomNumberIndex++] % ((DoorUp || DoorDown) ? 2 : 3));
+			if(RandomChoice == 2)
+			{
+				if(AbsTileZ == 0)	
+				{
+					DoorUp = true;
+				}
+				else
+				{
+					DoorDown = true;
+				}
+				
+			}
+			else if(RandomChoice == 1)
 			{
 				DoorRight = true;
 			}
@@ -142,7 +159,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 				for (uint32 TileX = 0; TileX < TilesPerWidth; ++TileX)
 				{
 					uint32 AbsTileX = ScreenX * TilesPerWidth + TileX;
-					uint32 AbsTileY = ScreenY * TilesPerHeight + TileY;
+					uint32 AbsTileY = ScreenY * TilesPerHeight + TileY;					
 					uint32 TileValue = 1;
 					if((TileX == 0) && (!DoorLeft || (TileY != (TilesPerHeight/2))))
 					{
@@ -160,15 +177,46 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 					{
 						TileValue = 2;
 					}
-					SetTileValue (&GameState->WorldArena, TileMap, AbsTileX, AbsTileY, TileValue);
+					if((TileX == 10) && (TileY == 6))
+					{
+						if(DoorUp)
+						{
+							TileValue = 3;
+						}
+						if(DoorDown)
+						{
+							TileValue = 4;
+						}
+					}
+					SetTileValue (&GameState->WorldArena, TileMap, AbsTileX, AbsTileY, AbsTileZ, TileValue);
 				}
 			}
 			DoorLeft = DoorRight;
 			DoorBottom = DoorTop;
+			if(DoorUp)
+			{
+				DoorDown = true;
+				DoorUp = false;
+			}
+			else if(DoorDown)
+			{
+				DoorUp = true;
+				DoorDown = false;
+			}
+			else
+			{
+				DoorUp = false;
+				DoorDown = false;
+			}
+			
 			DoorRight = false;
 			DoorTop = false;
 			
-			if (RandomChoice == 0)
+			if(RandomChoice == 2)
+			{
+				AbsTileZ = 1 - AbsTileZ;	// AbsTileZ is 0 it goes to 1 otherwise, vice versa
+			}
+			else if(RandomChoice == 1)
 			{
 				ScreenX += 1;
 			}
@@ -294,10 +342,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 		{
 			uint32 Column = GameState->PlayerP.AbsTileX + Relcol;
 			uint32 Row = GameState->PlayerP.AbsTileY + Relrow;
-			uint32 TileID = GetTileValue(TileMap, Column, Row);
+			uint32 TileID = GetTileValue(TileMap, Column, Row, GameState->PlayerP.AbsTileZ);
 			if(TileID > 0)
 			{
-				float ColorVal = (TileID == 2) ? 1.0f : 0.5f;
+				float ColorVal = ((TileID == 2) ? 1.0f : ((TileID > 2) ? 0.25f : 0.5f));
 				ColorVal = ((Column == GameState->PlayerP.AbsTileX) && (Row == GameState->PlayerP.AbsTileY)) ? 0.0f : ColorVal;
 				float CenterX = ScreenCenterX - MeterToPixels * GameState->PlayerP.RelativeX + ((float)Relcol) * TileSideInPixels;
 				float CenterY = ScreenCenterY + MeterToPixels * GameState->PlayerP.RelativeY - ((float)Relrow) * TileSideInPixels;
