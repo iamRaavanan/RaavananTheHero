@@ -19,7 +19,7 @@ typedef struct thread_context
 	int Placeholder;
 } thread_context;
 
-#if RAAVANAN_INTERNAL
+// #if RAAVANAN_INTERNAL
 typedef struct debug_read_file_result
 {
 	uint32 ContentSize;
@@ -35,8 +35,8 @@ typedef DEBUG_FREE_FILE_MEMORY(debug_free_file_memory);
 #define DEBUG_WRITE_ENTIRE_FILE(name) bool name (thread_context *Thread, char *Filename, uint32 Memorysize, void *Memory)
 typedef DEBUG_WRITE_ENTIRE_FILE(debug_write_entire_file);
 
-#else
-#endif
+// #else
+// #endif
 
 typedef struct game_offscreen_buffer
 {
@@ -107,11 +107,11 @@ typedef struct game_memory
 	void *PermanentStorage;
 	uint64 TransientStorageSize;
 	void *TransientStorage;
-#if RAAVANAN_INTERNAL
+// #if RAAVANAN_INTERNAL
 	debug_read_entire_file *DEBUGReadEntireFile;
 	debug_free_file_memory *DEBUGFreeFileMemory;
 	debug_write_entire_file *DEBUGWriteEntireFile;
-#endif
+// #endif
 
 } game_memory;
 

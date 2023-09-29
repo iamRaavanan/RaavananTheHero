@@ -7,8 +7,8 @@ struct tile_map_position
 	uint32 AbsTileY;
 	uint32 AbsTileZ;
 	// Tile relative X & Y
-	float RelativeX;
-	float RelativeY;
+	float OffsetX;
+	float OffsetY;
 };
 
 struct tile_chunk_position

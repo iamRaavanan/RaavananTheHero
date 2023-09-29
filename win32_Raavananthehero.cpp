@@ -157,7 +157,7 @@ static void Win32MakeEXEPathFileName(Win32_RecordingState *State, char *FileName
 	CatStrings(State->OnePastLastExeFileNameSlash - State->ExeFileName, State->ExeFileName, StringLength(FileName), FileName, DstCount, Dst);
 }
 
-#if RAAVANAN_INTERNAL
+// #if RAAVANAN_INTERNAL
 DEBUG_FREE_FILE_MEMORY (DEBUGFreeFileMemory)
 {
 	if(Memory)
@@ -224,8 +224,7 @@ DEBUG_WRITE_ENTIRE_FILE (DEBUGWriteEntireFile)
 	}
 	return Result;
 }
-
-#endif
+// #endif
 
 static void Win32InitDirectSound (HWND Window, int32 SamplesPerSecond, int32 BufferSize)
 {
@@ -856,11 +855,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 				ReplayBuffer->MemoryMap = CreateFileMapping(ReplayBuffer->FileHandle, 0, PAGE_READWRITE, MaxSize.HighPart, MaxSize.LowPart, 0);
 				ReplayBuffer->MemoryBlock = MapViewOfFileEx (ReplayBuffer->MemoryMap, FILE_MAP_ALL_ACCESS, 0, 0, (size_t)RecordingState.TotalSize, 0);
 			}
-#if RAAVANAN_INTERNAL		
+// #if RAAVANAN_INTERNAL		
 			GameMemory.DEBUGReadEntireFile = DEBUGReadEntireFile;
 			GameMemory.DEBUGFreeFileMemory = DEBUGFreeFileMemory;
 			GameMemory.DEBUGWriteEntireFile = DEBUGWriteEntireFile;			
-#endif
+// #endif
 			DWORD AudioLatencyBytes = 0;
 			float AudioLatencySeconds = 0;
 			bool bIsSoundValid = false;

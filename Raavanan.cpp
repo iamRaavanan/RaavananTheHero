@@ -75,6 +75,32 @@ static void RenderRectangle(game_offscreen_buffer *Buffer, float realMinX, float
 		Row += Buffer->Pitch;
 	}
 }
+//#if RAAVANAN_INTERNAL
+#pragma pack(push, 1)
+struct bitmap_header
+{
+	uint16 FileType;
+	uint32 FileSize;
+	uint16 Reserved1;
+	uint16 Reserved2;
+	uint32 BitmapOffset;
+	uint32 Size;
+	int32 Width;
+	int32 Height;
+	uint16 Planes;
+	uint16 BitsPerPixel;
+};
+#pragma pack(pop)
+
+static void DEBUGLoadBMP (thread_context *Thread, debug_read_entire_file *ReadEntireFile, char *FileName)
+{
+	debug_read_file_result Result = ReadEntireFile (Thread, FileName);
+	if(Result.ContentSize != 0)
+	{
+		bitmap_header *Header = (bitmap_header *)Result.Content;
+	}
+}
+//#endif
 static void InitializeArena (memory_arena *MemoryArena, size_t Size, uint8 *BasePtr)
 {
 	MemoryArena->Size = Size;
@@ -92,10 +118,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
 	if(!Memory->IsInitialized)
 	{
+		DEBUGLoadBMP (Thread, Memory->DEBUGReadEntireFile, "test/test_background.bmp");
 		GameState->PlayerP.AbsTileX = 3;
 		GameState->PlayerP.AbsTileY = 2;
-		GameState->PlayerP.RelativeX = 5.0f;
-		GameState->PlayerP.RelativeY = 5.0f;
+		GameState->PlayerP.OffsetX = 5.0f;
+		GameState->PlayerP.OffsetY = 5.0f;
 		
 		InitializeArena (&GameState->WorldArena, (size_t)Memory->PermanentStorageSize - sizeof(game_state), (uint8 *)Memory->PermanentStorage + sizeof(game_state));
 		GameState->World = PushStruct(&GameState->WorldArena, world);
@@ -223,7 +250,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 			}
 			
 		}
-#if RAAVANAN_INTERNAL
+// #if RAAVANAN_INTERNAL
 		char *Filename = __FILE__;
 		debug_read_file_result File = Memory->DEBUGReadEntireFile(Thread, Filename);
 		if(File.Content)
@@ -231,6 +258,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 			Memory->DEBUGWriteEntireFile(Thread, "test.out", File.ContentSize, File.Content);
 			Memory->DEBUGFreeFileMemory(Thread, File.Content);
 		}
+#if RAAVANAN_INTERNAL
 		GameState->ToneHz = 256;
 		GameState->tSine = 0.0f;
 		GameState->PlayerX = GameState->PlayerY = 100;
@@ -295,16 +323,16 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 			dPlayerY *= PlayerSpeed;
 
 			tile_map_position NewPlayerP = GameState->PlayerP;
-			NewPlayerP.RelativeX += dPlayerX * Input->deltaTime;
-			NewPlayerP.RelativeY += dPlayerY * Input->deltaTime;
+			NewPlayerP.OffsetX += dPlayerX * Input->deltaTime;
+			NewPlayerP.OffsetY += dPlayerY * Input->deltaTime;
 			NewPlayerP = ReCanonicalizePosition(TileMap, NewPlayerP);
 
 			tile_map_position PlayerLeft = NewPlayerP;
-			PlayerLeft.RelativeX -= 0.5f * PlayerWidth;
+			PlayerLeft.OffsetX -= 0.5f * PlayerWidth;
 			PlayerLeft = ReCanonicalizePosition(TileMap, PlayerLeft);
 
 			tile_map_position PlayerRight = NewPlayerP;
-			PlayerRight.RelativeX += 0.5f * PlayerWidth;
+			PlayerRight.OffsetX += 0.5f * PlayerWidth;
 			PlayerRight = ReCanonicalizePosition(TileMap, PlayerRight);
 			
 			if(IsValidTileMapPoint(TileMap, NewPlayerP) && IsValidTileMapPoint(TileMap, PlayerLeft) && IsValidTileMapPoint(TileMap, PlayerRight))
@@ -356,8 +384,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 			{
 				float ColorVal = ((TileID == 2) ? 1.0f : ((TileID > 2) ? 0.25f : 0.5f));
 				ColorVal = ((Column == GameState->PlayerP.AbsTileX) && (Row == GameState->PlayerP.AbsTileY)) ? 0.0f : ColorVal;
-				float CenterX = ScreenCenterX - MeterToPixels * GameState->PlayerP.RelativeX + ((float)Relcol) * TileSideInPixels;
-				float CenterY = ScreenCenterY + MeterToPixels * GameState->PlayerP.RelativeY - ((float)Relrow) * TileSideInPixels;
+				float CenterX = ScreenCenterX - MeterToPixels * GameState->PlayerP.OffsetX + ((float)Relcol) * TileSideInPixels;
+				float CenterY = ScreenCenterY + MeterToPixels * GameState->PlayerP.OffsetY - ((float)Relrow) * TileSideInPixels;
 				float MinX = CenterX - 0.5f * TileSideInPixels;
 				float MinY = CenterY - 0.5f * TileSideInPixels;
 				float MaxX = CenterX + 0.5f * TileSideInPixels;

@@ -13,8 +13,8 @@ inline void RecanonicalizeCoord (tile_map *tilemap, uint32 *Tile, float *TileRel
 inline tile_map_position ReCanonicalizePosition (tile_map *tilemap, tile_map_position Position)
 {
 	tile_map_position Result = Position;
-	RecanonicalizeCoord(tilemap, &Result.AbsTileX	, &Result.RelativeX);
-	RecanonicalizeCoord(tilemap, &Result.AbsTileY, &Result.RelativeY);
+	RecanonicalizeCoord(tilemap, &Result.AbsTileX	, &Result.OffsetX);
+	RecanonicalizeCoord(tilemap, &Result.AbsTileY, &Result.OffsetY);
 	return Result;
 }
 
