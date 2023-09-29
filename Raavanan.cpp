@@ -92,13 +92,27 @@ struct bitmap_header
 };
 #pragma pack(pop)
 
-static void DEBUGLoadBMP (thread_context *Thread, debug_read_entire_file *ReadEntireFile, char *FileName)
+static uint32 *DEBUGLoadBMP (thread_context *Thread, debug_read_entire_file *ReadEntireFile, char *FileName)
 {
-	debug_read_file_result Result = ReadEntireFile (Thread, FileName);
-	if(Result.ContentSize != 0)
+	uint32 *Result = 0;
+	debug_read_file_result FileResult = ReadEntireFile (Thread, FileName);
+	if(FileResult.ContentSize != 0)
 	{
-		bitmap_header *Header = (bitmap_header *)Result.Content;
+		bitmap_header *Header = (bitmap_header *)FileResult.Content;
+		uint32 *Pixels = (uint32 *)((uint8 *)FileResult.Content + Header->BitmapOffset);
+		Result = Pixels;
+
+		uint32 *SrcDst = Pixels;
+		for (int32 Y = 0; Y < Header->Width; ++Y)
+		{
+			for (int32 X = 0; X < Header->Height; ++X)
+			{
+				*SrcDst = (*SrcDst >> 8) | (*SrcDst << 24);
+				++SrcDst;
+			}
+		}
 	}
+	return Result;
 }
 //#endif
 static void InitializeArena (memory_arena *MemoryArena, size_t Size, uint8 *BasePtr)
@@ -118,7 +132,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
 	if(!Memory->IsInitialized)
 	{
-		DEBUGLoadBMP (Thread, Memory->DEBUGReadEntireFile, "test/test_background.bmp");
+		GameState->PixelPointer = DEBUGLoadBMP (Thread, Memory->DEBUGReadEntireFile, "test/test_background.bmp");
 		GameState->PlayerP.AbsTileX = 3;
 		GameState->PlayerP.AbsTileY = 2;
 		GameState->PlayerP.OffsetX = 5.0f;
@@ -369,8 +383,35 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 		GameState->jumpTime -= 0.033f;
 #endif
 	}
-	
+#if 1
+	int32 PixelWidth = 1024;
+	int32 PixelHeight = 576;
+	int32 BlitWidth = PixelWidth;
+	int32 BlitHeight = PixelHeight;
+	if(BlitWidth > Buffer->Width)
+	{
+		BlitWidth = Buffer->Width;
+	}
+	if(BlitHeight > Buffer->Height)
+	{
+		BlitHeight = Buffer->Height;
+	}
+	uint32 *SrcRow = GameState->PixelPointer + PixelWidth * (PixelHeight - 1);
+	uint8 *DstRow = (uint8 *)Buffer->Memory;
+	for (int32 Y = 0; Y < BlitHeight; ++Y)
+	{
+		uint32 *Dst = (uint32 *)DstRow;
+		uint32 *Src = SrcRow;
+		for (int32 X = 0; X < BlitWidth; ++X)
+		{
+			*Dst++ = *Src++;
+		}
+		DstRow += Buffer->Pitch;
+		SrcRow -= PixelWidth;
+	}
+#else
 	RenderRectangle (Buffer, 0.0f, 0.0f, (float)Buffer->Width, (float)Buffer->Height, 0.0f, 0.0f, 0.0f);
+#endif
 	float ScreenCenterX = 0.5f * (float)Buffer->Width;
 	float ScreenCenterY = 0.5f * (float)Buffer->Height;
 	for (int32 Relrow = -10; Relrow < 10; ++Relrow)
@@ -380,7 +421,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 			uint32 Column = GameState->PlayerP.AbsTileX + Relcol;
 			uint32 Row = GameState->PlayerP.AbsTileY + Relrow;
 			uint32 TileID = GetTileValue(TileMap, Column, Row, GameState->PlayerP.AbsTileZ);
-			if(TileID > 0)
+			if(TileID > 1)
 			{
 				float ColorVal = ((TileID == 2) ? 1.0f : ((TileID > 2) ? 0.25f : 0.5f));
 				ColorVal = ((Column == GameState->PlayerP.AbsTileX) && (Row == GameState->PlayerP.AbsTileY)) ? 0.0f : ColorVal;
@@ -400,7 +441,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 	float PlayerB = 0.7f;	
 	float PlayerLeft = ScreenCenterX - 0.5f * MeterToPixels * PlayerWidth;
 	float PlayerTop = ScreenCenterY - MeterToPixels * PlayerHeight;
-	RenderRectangle(Buffer, PlayerLeft, PlayerTop, PlayerLeft + MeterToPixels * PlayerWidth, PlayerTop + MeterToPixels * PlayerHeight, PlayerR, PlayerG, PlayerB);
+	RenderRectangle(Buffer, PlayerLeft, PlayerTop, PlayerLeft + MeterToPixels * PlayerWidth, PlayerTop + MeterToPixels * PlayerHeight, PlayerR, PlayerG, PlayerB);	
 }
 
 extern "C" GET_GAME_SOUND_SAMPLES(GetGameSoundSamples)

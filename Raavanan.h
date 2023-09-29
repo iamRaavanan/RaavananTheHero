@@ -56,6 +56,7 @@ struct game_state
 	world *World;
 	memory_arena WorldArena;
 	tile_map_position PlayerP;
+	uint32 *PixelPointer;
 #if RAAVANAN_INTERNAL
 	int ToneHz;
 	int XOffset;
