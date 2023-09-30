@@ -129,6 +129,26 @@ struct bitmap_header
 };
 #pragma pack(pop)
 
+struct bit_scan_result
+{
+	bool Found;
+	uint32 Index;
+};
+static bit_scan_result FindLSBSetBit (uint32 Value)
+{
+	bit_scan_result Result = {};
+	for (uint32 Test = 0; Test < 32; ++Test)
+	{
+		if (Value & (1 << Test))
+		{
+			Result.Index = Test;
+			Result.Found = true;
+			break;
+		}
+	}
+	return Result;
+}
+
 static loaded_bitmap DEBUGLoadBMP (thread_context *Thread, debug_read_entire_file *ReadEntireFile, char *FileName)
 {
 	loaded_bitmap Result = {};
@@ -141,13 +161,31 @@ static loaded_bitmap DEBUGLoadBMP (thread_context *Thread, debug_read_entire_fil
 		Result.Width = Header->Width;
 		Result.Height = Header->Height;
 
+		uint32 RedMask = Header->RedMask;
+		uint32 GreenMask = Header->GreenMask;
+		uint32 BlueMask = Header->BlueMask;
+		uint32 AlphaMask = ~(RedMask | GreenMask | BlueMask);
+
+		bit_scan_result RedShift = FindLSBSetBit(RedMask);
+		bit_scan_result GreenShift = FindLSBSetBit(GreenMask);
+		bit_scan_result BlueShift = FindLSBSetBit(BlueMask);
+		bit_scan_result AlphaShift = FindLSBSetBit(AlphaMask);
+
+		Assert(RedShift.Found);
+		Assert(GreenShift.Found);
+		Assert(BlueShift.Found);
+		Assert(AlphaShift.Found);
+		
 		uint32 *SrcDst = Pixels;
 		for (int32 Y = 0; Y < Header->Height; ++Y)
 		{
 			for (int32 X = 0; X < Header->Width; ++X)
 			{
-				*SrcDst = (*SrcDst >> 8) | (*SrcDst << 24);
-				++SrcDst;
+				uint32 C = *SrcDst;
+				*SrcDst++ = ((((C >> AlphaShift.Index) & 0xFF) << 24) |
+							 (((C >> RedShift.Index) & 0xFF) << 16) |
+							 (((C >> GreenShift.Index) & 0xFF) << 8) |
+							 (((C >> BlueShift.Index) & 0xFF) << 0));
 				// uint8 C0 = SrcDst[0];	// Alpha
 				// uint8 C1 = SrcDst[1];	// Blue	
 				// uint8 C2 = SrcDst[2];	// Green	
@@ -177,6 +215,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
 	if(!Memory->IsInitialized)
 	{
+		GameState->Backdrop = DEBUGLoadBMP(Thread, Memory->DEBUGReadEntireFile, "test/structured_art.bmp");
 		GameState->Backdrop = DEBUGLoadBMP (Thread, Memory->DEBUGReadEntireFile, "test/test_background.bmp");
 
 		GameState->PlayerHead = DEBUGLoadBMP(Thread, Memory->DEBUGReadEntireFile, "test/test_hero_front_head.bmp");
