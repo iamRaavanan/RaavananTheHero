@@ -50,13 +50,23 @@ struct world
 	tile_map *TileMap;
 };
 
+struct loaded_bitmap
+{
+	int32 Width;
+	int32 Height;
+	uint32 *Pixels;
+};
 
 struct game_state
 {
 	world *World;
 	memory_arena WorldArena;
 	tile_map_position PlayerP;
-	uint32 *PixelPointer;
+	loaded_bitmap Backdrop;
+
+	loaded_bitmap PlayerHead;
+	loaded_bitmap PlayerCape;
+	loaded_bitmap PlayerTorso;
 #if RAAVANAN_INTERNAL
 	int ToneHz;
 	int XOffset;
