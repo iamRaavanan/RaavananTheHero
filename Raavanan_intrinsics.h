@@ -44,6 +44,29 @@ inline double ATan2(float Y, float X)
     double Result = atan2(Y, X);
     return Result;
 }
+struct bit_scan_result
+{
+	bool Found;
+	uint32 Index;
+};
+inline bit_scan_result FindLSBSetBit (uint32 Value)
+{
+	bit_scan_result Result = {};
+#if COMPILER_MSVC
+	Result.Found = _BitScanForward((unsigned long *)&Result.Index, Value);
+#else
+	for (uint32 Test = 0; Test < 32; ++Test)
+	{
+		if (Value & (1 << Test))
+		{
+			Result.Index = Test;
+			Result.Found = true;
+			break;
+		}
+	}
+#endif
+	return Result;
+}
 
 #define RAAVANAN_INTRINSICS_H
 #endif

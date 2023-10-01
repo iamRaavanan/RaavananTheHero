@@ -96,7 +96,24 @@ static void RenderBitMap(game_offscreen_buffer *Buffer, loaded_bitmap *Bitmap, f
 		uint32 *Src = SrcRow;
 		for (int x = MinX; x < MaxX; ++x)
 		{
-			*Dst++ = *Src++;
+			float A = (float)((*Src >> 24) & 0xFF) / 255.0f;
+			float SR = (float)((*Src >> 16) & 0xFF);
+			float SG = (float)((*Src >> 8) & 0xFF);
+			float SB = (float)((*Src >> 0) & 0xFF);
+
+			float DR = (float)((*Dst >> 16) & 0xFF);
+			float DG = (float)((*Dst >> 8) & 0xFF);
+			float DB = (float)((*Dst >> 0) & 0xFF);
+
+			float R = (1 - A) * DR + A * SR;
+			float G = (1 - A) * DG + A * SG;
+			float B = (1 - A) * DB + A * SB;
+
+			*Dst = (((uint32)(R + 0.5f) << 16) |
+					((uint32)(G + 0.5f) << 8) |
+					((uint32)(B + 0.5f) << 0));
+			++Dst;
+			++Src;
 		}
 		DstRow += Buffer->Pitch;
 		SrcRow -= Bitmap->Width;
@@ -129,26 +146,6 @@ struct bitmap_header
 };
 #pragma pack(pop)
 
-struct bit_scan_result
-{
-	bool Found;
-	uint32 Index;
-};
-static bit_scan_result FindLSBSetBit (uint32 Value)
-{
-	bit_scan_result Result = {};
-	for (uint32 Test = 0; Test < 32; ++Test)
-	{
-		if (Value & (1 << Test))
-		{
-			Result.Index = Test;
-			Result.Found = true;
-			break;
-		}
-	}
-	return Result;
-}
-
 static loaded_bitmap DEBUGLoadBMP (thread_context *Thread, debug_read_entire_file *ReadEntireFile, char *FileName)
 {
 	loaded_bitmap Result = {};
@@ -161,6 +158,7 @@ static loaded_bitmap DEBUGLoadBMP (thread_context *Thread, debug_read_entire_fil
 		Result.Width = Header->Width;
 		Result.Height = Header->Height;
 
+		Assert(Header->Compression == 3);
 		uint32 RedMask = Header->RedMask;
 		uint32 GreenMask = Header->GreenMask;
 		uint32 BlueMask = Header->BlueMask;
