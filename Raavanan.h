@@ -57,16 +57,25 @@ struct loaded_bitmap
 	uint32 *Pixels;
 };
 
+struct hero_bitmaps
+{
+	int32 AlignX;
+	int32 AlignY;
+	loaded_bitmap Head;
+	loaded_bitmap Cape;
+	loaded_bitmap Torso;
+};
+
 struct game_state
 {
 	world *World;
 	memory_arena WorldArena;
 	tile_map_position PlayerP;
+	tile_map_position CameraP;
 	loaded_bitmap Backdrop;
 
-	loaded_bitmap PlayerHead;
-	loaded_bitmap PlayerCape;
-	loaded_bitmap PlayerTorso;
+	uint32 HeroFacingDirection;
+	hero_bitmaps HeroBitmaps[4];
 #if RAAVANAN_INTERNAL
 	int ToneHz;
 	int XOffset;

@@ -1,5 +1,12 @@
 #ifndef RAAVANAN_TILE_H
 
+struct tile_map_difference
+{
+	float dX;
+	float dY;
+	float dZ;
+};
+
 struct tile_map_position
 {
 	// Note: Fixexd tile position.  High bits for Tile chunk index, Low bits for Tile index in the chunk

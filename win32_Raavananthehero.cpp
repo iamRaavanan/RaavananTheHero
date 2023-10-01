@@ -60,17 +60,22 @@ inline FILETIME Win32GetLastWriteTime(char *Filename)
 	return LastWriteTime;
 }
 
-static Win32_game_code Win32LoadGameCode (char *SrcDLLName, char *TempDLLName)
+static Win32_game_code Win32LoadGameCode (char *SrcDLLName, char *TempDLLName, char *LockFileName)
 {
 	Win32_game_code Result = {};
-	Result.DllLastWriteTime = Win32GetLastWriteTime(SrcDLLName);
-	CopyFileA(SrcDLLName, TempDLLName, FALSE);
-	Result.GameCodeDLL = LoadLibraryA(TempDLLName);
-	if(Result.GameCodeDLL)
+	
+	WIN32_FILE_ATTRIBUTE_DATA Ignored;
+	if(!GetFileAttributesExA (LockFileName, GetFileExInfoStandard, &Ignored))
 	{
-		Result.UpdateAndRender = (game_update_and_Render *)GetProcAddress(Result.GameCodeDLL, "GameUpdateAndRender");
-		Result.GetSoundSamples = (get_game_sound_samples *)GetProcAddress(Result.GameCodeDLL, "GetGameSoundSamples");
-		Result.bIsValid = (Result.UpdateAndRender && Result.GetSoundSamples);
+		Result.DllLastWriteTime = Win32GetLastWriteTime(SrcDLLName);
+		CopyFileA(SrcDLLName, TempDLLName, FALSE);
+		Result.GameCodeDLL = LoadLibraryA(TempDLLName);
+		if(Result.GameCodeDLL)
+		{
+			Result.UpdateAndRender = (game_update_and_Render *)GetProcAddress(Result.GameCodeDLL, "GameUpdateAndRender");
+			Result.GetSoundSamples = (get_game_sound_samples *)GetProcAddress(Result.GameCodeDLL, "GetGameSoundSamples");
+			Result.bIsValid = (Result.UpdateAndRender && Result.GetSoundSamples);
+		}	
 	}
 	
 	if(!Result.bIsValid)
@@ -775,6 +780,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 	
 	char TempDLLFullPath[MAX_PATH];
 	Win32MakeEXEPathFileName(&RecordingState, "Raavanan_temp.dll", sizeof(TempDLLFullPath), TempDLLFullPath);
+	char GamecodeLockFullPath[MAX_PATH];
+	Win32MakeEXEPathFileName(&RecordingState, "lock.temp", sizeof(GamecodeLockFullPath), GamecodeLockFullPath);
 
 	UINT DesiredSchedulerMS = 1;
 	bool SleepIsGranular = (timeBeginPeriod(DesiredSchedulerMS) == TIMERR_NOERROR);
@@ -876,7 +883,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 				Win32_debug_time_marker DebugTimeMarkers[30] = {0};
 				
 				
-				Win32_game_code Game = Win32LoadGameCode(SrcDLLFullPath, TempDLLFullPath);
+				Win32_game_code Game = Win32LoadGameCode(SrcDLLFullPath, TempDLLFullPath, GamecodeLockFullPath);
 				uint32 LoadCounter = 120;
 				uint64 LastCycleCount = __rdtsc();
 				while(bIsRunning)
@@ -886,7 +893,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 					if(CompareFileTime(&NewDllWriteTime, &Game.DllLastWriteTime) != 0)
 					{
 						Win32UnLoadGameCode(&Game);
-						Game = Win32LoadGameCode(SrcDLLFullPath, TempDLLFullPath);
+						Game = Win32LoadGameCode(SrcDLLFullPath, TempDLLFullPath, GamecodeLockFullPath);
 						LoadCounter = 0;
 					}
 					game_controller_input *OldKeyboardController = GetController(OldInput, 0);
@@ -1149,7 +1156,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 						float FPS = 0.0f; //(float)PerfCountFrequency/(float)CounterElapsed;
 						double MegaCyclePerFrame = ((double)CyclesElapsed / (1000.0f * 1000.0f));
 						char TextBuffer[256];
-						sprintf_s(TextBuffer, "PC:%u BTL: %u TC: %u BTW: %u\n", LastPlayCursor, ByteTolock, TargetCursor, BytesToWrite);
+						sprintf_s(TextBuffer, "MS:%.02fms MS:%.02fmc\n", MSPerFrame, MegaCyclePerFrame);
 						OutputDebugStringA(TextBuffer);
 						#endif
 #if RAAVANAN_INTERNAL
