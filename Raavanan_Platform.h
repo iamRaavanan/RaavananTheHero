@@ -36,6 +36,24 @@ typedef uint16_t uint16;
 typedef uint32_t uint32;
 typedef uint64_t uint64;
 
+#define PI 3.14159265359
+
+#define Assert(Expression) if(!(Expression)) { *(int *) 0 = 0;}
+
+#define Kilobytes(value) ((value) * 1024LL)
+#define Megabytes(value) (Kilobytes(value) * 1024LL)
+#define Gigabytes(value) (Megabytes(value) * 1024LL)
+#define Terabytes(value) (Gigabytes(value) * 1024LL)
+
+#define ArrayCount(Array) (sizeof(Array) / sizeof((Array)[0]))
+
+uint32 SafeTruncateUInt64(uint64 value)
+{
+	Assert(value <= 0xFFFFFFFF);
+	uint32 Result = (uint32)value;
+	return Result;
+}
+
 typedef struct thread_context
 {
 	int Placeholder;
@@ -153,6 +171,12 @@ GET_GAME_SOUND_SAMPLES(GetGameSoundSamplesStub)
 {
 }
 
+inline game_controller_input *GetController (game_input *input, int ControllerIndex)
+{
+	Assert(ControllerIndex < ArrayCount(input->Controllers));
+	game_controller_input *Result = &input->Controllers[ControllerIndex];
+	return Result;
+}
 #ifdef __cpluscplus
 }
 #endif

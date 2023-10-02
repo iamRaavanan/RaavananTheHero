@@ -1,10 +1,37 @@
 
-#include "Raavanan.h"
+#include "Raavanan_Platform.h"
 #include "win32_Raavananthehero.h"
 #include <xinput.h>
 #include <dsound.h>
 #include <stdio.h>
 
+static WINDOWPLACEMENT GlobalWindowPos = { sizeof(GlobalWindowPos) };
+static void ToggleFullscreen(HWND hwnd)
+{
+	// Reymond Chen's work for Toggle between normal and fullscreen
+  DWORD dwStyle = GetWindowLong(hwnd, GWL_STYLE);
+  if (dwStyle & WS_OVERLAPPEDWINDOW) {
+    MONITORINFO mi = { sizeof(mi) };
+    if (GetWindowPlacement(hwnd, &GlobalWindowPos) &&
+        GetMonitorInfo(MonitorFromWindow(hwnd,
+                       MONITOR_DEFAULTTOPRIMARY), &mi)) {
+      SetWindowLong(hwnd, GWL_STYLE,
+                    dwStyle & ~WS_OVERLAPPEDWINDOW);
+      SetWindowPos(hwnd, HWND_TOP,
+                   mi.rcMonitor.left, mi.rcMonitor.top,
+                   mi.rcMonitor.right - mi.rcMonitor.left,
+                   mi.rcMonitor.bottom - mi.rcMonitor.top,
+                   SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+    }
+  } else {
+    SetWindowLong(hwnd, GWL_STYLE,
+                  dwStyle | WS_OVERLAPPEDWINDOW);
+    SetWindowPlacement(hwnd, &GlobalWindowPos);
+    SetWindowPos(hwnd, NULL, 0, 0, 0, 0,
+                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
+                 SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+  }
+}
 
 #pragma region X_INPUT
 // XInputGetState
@@ -291,6 +318,7 @@ static void Win32InitDirectSound (HWND Window, int32 SamplesPerSecond, int32 Buf
 win32_offscreen_buffer  backBuffer;
 bool bIsRunning;
 bool bIsPaused;
+HCURSOR DEBUGGlobalCursor;
 
 win32_window_dimension GetWindowDimension (HWND hwnd)
 {
@@ -331,18 +359,31 @@ void Win32UpdateBufferInWindow (win32_offscreen_buffer *Buffer, HDC DeviceContex
 	// int windowWidth = WindowRect->right - WindowRect->left;
 	// int windowHeight = WindowRect->bottom - WindowRect->top;
 	//StretchDIBits(DeviceContext, x, y, width, height, x, y, width, height, BitmapMemory, &BitmapInfo, DIB_RGB_COLORS,SRCCOPY);
-	int xOffset = 10;
-	int yOffset = 10;
-	PatBlt(DeviceContext, 0, 0, windowWidth, yOffset, BLACKNESS);
-	PatBlt(DeviceContext, 0, yOffset + Buffer->Height, windowWidth, windowHeight, BLACKNESS);
-	PatBlt(DeviceContext, 0, 0, xOffset, windowHeight, BLACKNESS);
-	PatBlt(DeviceContext, xOffset + Buffer->Width, 0, windowWidth, windowHeight, BLACKNESS);
-	StretchDIBits(DeviceContext, 
-					xOffset, yOffset, Buffer->Width, Buffer->Height, 
-					0, 0, Buffer->Width, Buffer->Height, 
-					Buffer->Memory, 
-					&Buffer->Info, 
-					DIB_RGB_COLORS, SRCCOPY);
+	if((windowWidth >= Buffer->Width *2) || (windowHeight >= Buffer->Height * 2))
+	{
+		StretchDIBits(DeviceContext, 
+						0, 0, 2 * Buffer->Width, 2 * Buffer->Height, 
+						0, 0, Buffer->Width, Buffer->Height, 
+						Buffer->Memory, 
+						&Buffer->Info, 
+						DIB_RGB_COLORS, SRCCOPY);
+	}
+	else
+	{
+		int xOffset = 10;
+		int yOffset = 10;
+		PatBlt(DeviceContext, 0, 0, windowWidth, yOffset, BLACKNESS);
+		PatBlt(DeviceContext, 0, yOffset + Buffer->Height, windowWidth, windowHeight, BLACKNESS);
+		PatBlt(DeviceContext, 0, 0, xOffset, windowHeight, BLACKNESS);
+		PatBlt(DeviceContext, xOffset + Buffer->Width, 0, windowWidth, windowHeight, BLACKNESS);
+		StretchDIBits(DeviceContext, 
+						xOffset, yOffset, Buffer->Width, Buffer->Height, 
+						0, 0, Buffer->Width, Buffer->Height, 
+						Buffer->Memory, 
+						&Buffer->Info, 
+						DIB_RGB_COLORS, SRCCOPY);
+	}
+	
 }
 
 static LRESULT CALLBACK Win32Wndproc (HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -354,6 +395,10 @@ static LRESULT CALLBACK Win32Wndproc (HWND hwnd, UINT uMsg, WPARAM wParam, LPARA
 		{
 			// win32_window_dimension dimension = GetWindowDimension(hwnd);
 			// Win32ResizeDBISection(&backBuffer, dimension.Width, dimension.Height);
+		} break;
+		case WM_SETCURSOR:
+		{
+			SetCursor (DEBUGGlobalCursor);
 		} break;
 		case WM_DESTROY:
 		{
@@ -646,10 +691,20 @@ static void Win32ProcessMessage (Win32_RecordingState *RecordingState, game_cont
 						}						
 					}
 #endif
-				}
-				bool AltDown = ((Message.lParam & (1 << 29)) != 0);
-				if(VKCode == VK_F4 && AltDown) {
-					bIsRunning = false;
+					if(KeyIsDown)
+					{
+						bool AltDown = ((Message.lParam & (1 << 29)) != 0);
+						if(VKCode == VK_F4 && AltDown) {
+							bIsRunning = false;
+						}
+						if(VKCode == VK_RETURN && AltDown)
+						{
+							if(Message.hwnd)
+							{
+								ToggleFullscreen(Message.hwnd);
+							}
+						}
+					}
 				}
 			} break;
 			default:
@@ -787,6 +842,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 	bool SleepIsGranular = (timeBeginPeriod(DesiredSchedulerMS) == TIMERR_NOERROR);
 
 	Win32LoadXInput();
+	DEBUGGlobalCursor = LoadCursor(0, IDC_ARROW);
 	WNDCLASSA WindowClass = {};
 	//win32_window_dimension dimension = GetWindowDimension(hwnd);
 	Win32ResizeDBISection(&backBuffer, 960, 540);
