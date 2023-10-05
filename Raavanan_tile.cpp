@@ -13,8 +13,8 @@ inline void RecanonicalizeCoord (tile_map *tilemap, uint32 *Tile, float *TileRel
 inline tile_map_position ReCanonicalizePosition (tile_map *tilemap, tile_map_position Position)
 {
 	tile_map_position Result = Position;
-	RecanonicalizeCoord(tilemap, &Result.AbsTileX	, &Result.OffsetX);
-	RecanonicalizeCoord(tilemap, &Result.AbsTileY, &Result.OffsetY);
+	RecanonicalizeCoord(tilemap, &Result.AbsTileX	, &Result.Offset.X);
+	RecanonicalizeCoord(tilemap, &Result.AbsTileY, &Result.Offset.Y);
 	return Result;
 }
 
@@ -123,12 +123,10 @@ inline bool AreOnSameTile(tile_map_position *A, tile_map_position *B)
 inline tile_map_difference Subtract (tile_map *TileMap, tile_map_position *A, tile_map_position *B)
 {
 	tile_map_difference Result = {};
-	float dTileX = (float)A->AbsTileX - (float)B->AbsTileX;
-	float dTileY = (float)A->AbsTileY - (float)B->AbsTileY;
+	v2 dTile = V2((float)A->AbsTileX - (float)B->AbsTileX, (float)A->AbsTileY - (float)B->AbsTileY);
 	float dTileZ = (float)A->AbsTileZ - (float)B->AbsTileZ;
 
-	Result.dX = TileMap->TileSideInMeters * dTileX + A->OffsetX - B->OffsetX;
-	Result.dY = TileMap->TileSideInMeters * dTileY +  A->OffsetY - B->OffsetY;
+	Result.dXY = TileMap->TileSideInMeters * dTile + A->Offset - B->Offset;
 	Result.dZ = TileMap->TileSideInMeters * dTileZ +  0.0f;
 	return Result;
 }

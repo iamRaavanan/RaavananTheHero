@@ -2,8 +2,7 @@
 
 struct tile_map_difference
 {
-	float dX;
-	float dY;
+	v2 dXY;
 	float dZ;
 };
 
@@ -14,8 +13,7 @@ struct tile_map_position
 	uint32 AbsTileY;
 	uint32 AbsTileZ;
 	// Tile relative X & Y
-	float OffsetX;
-	float OffsetY;
+	v2 Offset;
 };
 
 struct tile_chunk_position

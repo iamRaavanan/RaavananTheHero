@@ -433,39 +433,41 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 				GameState->YOffset += 1;
 			}
 #endif
-			float dPlayerX = 0.0f;
-			float dPlayerY = 0.0f;
+			v2 dPlayer = {};
+			
 			if(Controller->MoveUp.EndedDown)
 			{
 				GameState->HeroFacingDirection = 1;
-				dPlayerY = 1.0f;
+				dPlayer.Y = 1.0f;
 			}
 			if(Controller->MoveDown.EndedDown)
 			{
 				GameState->HeroFacingDirection = 3;
-				dPlayerY = -1.0f;
+				dPlayer.Y = -1.0f;
 			}
 			if(Controller->MoveRight.EndedDown)
 			{
 				GameState->HeroFacingDirection = 0;
-				dPlayerX = 1.0f;
+				dPlayer.X = 1.0f;
 			}
 			if(Controller->MoveLeft.EndedDown)
 			{
 				GameState->HeroFacingDirection = 2;
-				dPlayerX = -1.0f;
+				dPlayer.X = -1.0f;
 			}
 			float PlayerSpeed = 2.0f;
 			if(Controller->ActionUp.EndedDown)
 			{
 				PlayerSpeed = 10.0f;
 			}
-			dPlayerX *= PlayerSpeed;
-			dPlayerY *= PlayerSpeed;
+			dPlayer *= PlayerSpeed;
 
+			if((dPlayer.X != 0.0f) &&(dPlayer.Y != 0.0f))
+			{
+				dPlayer *= 0.7071067811865f;
+			}
 			tile_map_position NewPlayerP = GameState->PlayerP;
-			NewPlayerP.OffsetX += dPlayerX * Input->deltaTime;
-			NewPlayerP.OffsetY += dPlayerY * Input->deltaTime;
+			NewPlayerP.Offset += dPlayer * Input->deltaTime;
 			NewPlayerP = ReCanonicalizePosition(TileMap, NewPlayerP);
 
 			tile_map_position PlayerLeft = NewPlayerP;

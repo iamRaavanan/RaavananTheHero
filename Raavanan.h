@@ -1,7 +1,5 @@
 #ifndef RAAVANAN_H
 #include "Raavanan_Platform.h"
-#include <math.h>
-#include "Raavanan_tile.h"
 
 struct memory_arena
 {
@@ -20,6 +18,9 @@ void *PushSize_(memory_arena *MemoryArena, size_t Size)
 	return Result;
 }
 
+#include <math.h>
+#include "Raavanan_math.h"
+#include "Raavanan_tile.h"
 struct world
 {
 	tile_map *TileMap;
