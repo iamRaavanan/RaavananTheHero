@@ -50,12 +50,12 @@ static void RenderGradiant(game_offscreen_buffer *Buffer, int xOffset, int yOffs
 	}
 }
 
-static void RenderRectangle(game_offscreen_buffer *Buffer, float realMinX, float realMinY, float realMaxX, float realMaxY, float R, float G, float B)
+static void RenderRectangle(game_offscreen_buffer *Buffer, v2 vMin, v2 vMax, float R, float G, float B)
 {
-	int32 MinX = RoundFloatToInt32(realMinX);
-	int32 MinY = RoundFloatToInt32(realMinY);
-	int32 MaxX = RoundFloatToInt32(realMaxX);
-	int32 MaxY = RoundFloatToInt32(realMaxY);
+	int32 MinX = RoundFloatToInt32(vMin.X);
+	int32 MinY = RoundFloatToInt32(vMin.Y);
+	int32 MaxX = RoundFloatToInt32(vMax.X);
+	int32 MaxY = RoundFloatToInt32(vMax.Y);
 	
 	MinX = (MinX < 0) ? 0 : MinX;
 	MinY = (MinY < 0) ? 0 : MinY;
@@ -258,8 +258,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 		GameState->CameraP.AbsTileY = 9/2;
 		GameState->PlayerP.AbsTileX = 3;
 		GameState->PlayerP.AbsTileY = 2;
-		GameState->PlayerP.OffsetX = 5.0f;
-		GameState->PlayerP.OffsetY = 5.0f;
+		GameState->PlayerP.Offset.X = 5.0f;
+		GameState->PlayerP.Offset.Y = 5.0f;
 		
 		InitializeArena (&GameState->WorldArena, (size_t)Memory->PermanentStorageSize - sizeof(game_state), (uint8 *)Memory->PermanentStorage + sizeof(game_state));
 		GameState->World = PushStruct(&GameState->WorldArena, world);
@@ -467,15 +467,15 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 				dPlayer *= 0.7071067811865f;
 			}
 			tile_map_position NewPlayerP = GameState->PlayerP;
-			NewPlayerP.Offset += dPlayer * Input->deltaTime;
+			NewPlayerP.Offset += Input->deltaTime * dPlayer;
 			NewPlayerP = ReCanonicalizePosition(TileMap, NewPlayerP);
 
 			tile_map_position PlayerLeft = NewPlayerP;
-			PlayerLeft.OffsetX -= 0.5f * PlayerWidth;
+			PlayerLeft.Offset.X -= 0.5f * PlayerWidth;
 			PlayerLeft = ReCanonicalizePosition(TileMap, PlayerLeft);
 
 			tile_map_position PlayerRight = NewPlayerP;
-			PlayerRight.OffsetX += 0.5f * PlayerWidth;
+			PlayerRight.Offset.X += 0.5f * PlayerWidth;
 			PlayerRight = ReCanonicalizePosition(TileMap, PlayerRight);
 			
 			if(IsValidTileMapPoint(TileMap, NewPlayerP) && IsValidTileMapPoint(TileMap, PlayerLeft) && IsValidTileMapPoint(TileMap, PlayerRight))
@@ -496,19 +496,19 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 			}
 			GameState->CameraP.AbsTileZ = GameState->PlayerP.AbsTileZ;
 			tile_map_difference Diff = Subtract(TileMap, &GameState->PlayerP, &GameState->CameraP);
-			if (Diff.dX > (9.0f * TileMap->TileSideInMeters))
+			if (Diff.dXY.X > (9.0f * TileMap->TileSideInMeters))
 			{
 				GameState->CameraP.AbsTileX += 17;
 			}
-			if (Diff.dX < -(9.0f * TileMap->TileSideInMeters))
+			if (Diff.dXY.X < -(9.0f * TileMap->TileSideInMeters))
 			{
 				GameState->CameraP.AbsTileX -= 17;
 			}
-			if (Diff.dY > (5.0f * TileMap->TileSideInMeters))
+			if (Diff.dXY.Y > (5.0f * TileMap->TileSideInMeters))
 			{
 				GameState->CameraP.AbsTileY += 9;
 			}
-			if (Diff.dY < -(5.0f * TileMap->TileSideInMeters))
+			if (Diff.dXY.Y < -(5.0f * TileMap->TileSideInMeters))
 			{
 				GameState->CameraP.AbsTileY -= 9;
 			}
@@ -546,13 +546,13 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 			{
 				float ColorVal = ((TileID == 2) ? 1.0f : ((TileID > 2) ? 0.25f : 0.5f));
 				ColorVal = ((Column == GameState->CameraP.AbsTileX) && (Row == GameState->CameraP.AbsTileY)) ? 0.0f : ColorVal;
-				float CenterX = ScreenCenterX - MeterToPixels * GameState->CameraP.OffsetX + ((float)Relcol) * TileSideInPixels;
-				float CenterY = ScreenCenterY + MeterToPixels * GameState->CameraP.OffsetY - ((float)Relrow) * TileSideInPixels;
-				float MinX = CenterX - 0.5f * TileSideInPixels;
-				float MinY = CenterY - 0.5f * TileSideInPixels;
-				float MaxX = CenterX + 0.5f * TileSideInPixels;
-				float MaxY = CenterY + 0.5f * TileSideInPixels;
-				RenderRectangle(Buffer, MinX, MinY, MaxX, MaxY, ColorVal, ColorVal, ColorVal);
+
+				v2 TileSide = {0.5f * TileSideInPixels, 0.5f * TileSideInPixels};
+				v2 Center = {ScreenCenterX - MeterToPixels * GameState->CameraP.Offset.X + ((float)Relcol) * TileSideInPixels,
+								ScreenCenterY + MeterToPixels * GameState->CameraP.Offset.Y - ((float)Relrow) * TileSideInPixels};
+				v2 Min = Center - TileSide;
+				v2 Max = Center + TileSide;
+				RenderRectangle(Buffer, Min, Max, ColorVal, ColorVal, ColorVal);
 			}			
 		}
 	}
@@ -561,11 +561,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 	float PlayerR = 1.0f;
 	float PlayerG = 0.4f;
 	float PlayerB = 0.7f;
-	float PlayerGroundPointX = ScreenCenterX + MeterToPixels * Diff.dX;
-	float PlayerGroundPointY = ScreenCenterY - MeterToPixels * Diff.dY;
-	float PlayerLeft = PlayerGroundPointX - 0.5f * MeterToPixels * PlayerWidth;
-	float PlayerTop = PlayerGroundPointY - MeterToPixels * PlayerHeight;
-	RenderRectangle(Buffer, PlayerLeft, PlayerTop, PlayerLeft + MeterToPixels * PlayerWidth, PlayerTop + MeterToPixels * PlayerHeight, PlayerR, PlayerG, PlayerB);	
+	float PlayerGroundPointX = ScreenCenterX + MeterToPixels * Diff.dXY.X;
+	float PlayerGroundPointY = ScreenCenterY - MeterToPixels * Diff.dXY.Y;
+	v2 PlayerLeftTop = {PlayerGroundPointX - 0.5f * MeterToPixels * PlayerWidth, PlayerGroundPointY - MeterToPixels * PlayerHeight};
+	v2 PlayerWidthHeight = {PlayerWidth, PlayerHeight};
+	RenderRectangle(Buffer, PlayerLeftTop, PlayerLeftTop + MeterToPixels * PlayerWidthHeight, PlayerR, PlayerG, PlayerB);	
 	hero_bitmaps *HeroBitsmaps = &GameState->HeroBitmaps[GameState->HeroFacingDirection];
 	RenderBitMap(Buffer, &HeroBitsmaps->Torso, PlayerGroundPointX, PlayerGroundPointY, HeroBitsmaps->AlignX, HeroBitsmaps->AlignY);
 	RenderBitMap(Buffer, &HeroBitsmaps->Cape, PlayerGroundPointX, PlayerGroundPointY, HeroBitsmaps->AlignX, HeroBitsmaps->AlignY);

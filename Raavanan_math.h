@@ -1,14 +1,17 @@
 #ifndef RAAVANAN_MATH_H
 
-struct v2
+// struct 
+// {
+union v2
 {
-    union 
+    struct
     {
         float X, Y;
-        float E[2];
     };
-    
+    float E[2];
 };
+    //float &operator[] (int index) { return ((&X)[index]);}
+//};
 
 inline v2 V2(float X, float Y)
 {
@@ -26,6 +29,18 @@ inline v2 operator* (float A, v2 B)
     return Result;
 }
 
+inline v2 operator* (v2 A, float B)
+{
+    v2 Result = B * A;
+    return Result;
+}
+
+inline v2 &operator*=(v2 &B, float A)
+{
+    B = A * B;
+    return B;
+}
+
 inline v2 operator- (v2 A)
 {
     v2 Result;
@@ -40,6 +55,12 @@ inline v2 operator+ (v2 A, v2 B)
     Result.X = A.X + B.X;
     Result.Y = A.Y + B.Y;
     return Result;
+}
+
+inline v2 &operator+=(v2 &A, v2 B)
+{
+    A = A + B;
+    return A;
 }
 
 inline v2 operator- (v2 A, v2 B)

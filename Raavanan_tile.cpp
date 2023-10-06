@@ -123,7 +123,7 @@ inline bool AreOnSameTile(tile_map_position *A, tile_map_position *B)
 inline tile_map_difference Subtract (tile_map *TileMap, tile_map_position *A, tile_map_position *B)
 {
 	tile_map_difference Result = {};
-	v2 dTile = V2((float)A->AbsTileX - (float)B->AbsTileX, (float)A->AbsTileY - (float)B->AbsTileY);
+	v2 dTile = {(float)A->AbsTileX - (float)B->AbsTileX, (float)A->AbsTileY - (float)B->AbsTileY};
 	float dTileZ = (float)A->AbsTileZ - (float)B->AbsTileZ;
 
 	Result.dXY = TileMap->TileSideInMeters * dTile + A->Offset - B->Offset;
