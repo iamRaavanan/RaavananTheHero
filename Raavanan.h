@@ -47,9 +47,10 @@ struct game_state
 	world *World;
 	memory_arena WorldArena;
 	tile_map_position PlayerP;
+	v2 dPlayerP;
+
 	tile_map_position CameraP;
 	loaded_bitmap Backdrop;
-
 	uint32 HeroFacingDirection;
 	hero_bitmaps HeroBitmaps[4];
 #if RAAVANAN_INTERNAL
