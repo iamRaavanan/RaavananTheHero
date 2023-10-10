@@ -483,7 +483,24 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 			PlayerRight.Offset.X += 0.5f * PlayerWidth;
 			PlayerRight = ReCanonicalizePosition(TileMap, PlayerRight);
 			
-			if(IsValidTileMapPoint(TileMap, NewPlayerP) && IsValidTileMapPoint(TileMap, PlayerLeft) && IsValidTileMapPoint(TileMap, PlayerRight))
+			bool IsCollided = false;
+			tile_map_position CollisionPt = {};
+			if(!IsValidTileMapPoint(TileMap, NewPlayerP))
+			{
+				CollisionPt = NewPlayerP;
+				IsCollided = true;
+			}
+			if(!IsValidTileMapPoint(TileMap, PlayerLeft))
+			{
+				CollisionPt = PlayerLeft;
+				IsCollided = true;
+			}
+			if(!IsValidTileMapPoint(TileMap, PlayerRight))
+			{
+				CollisionPt = PlayerRight;
+				IsCollided = true;
+			}
+			if(!IsCollided)
 			{
 				if(!AreOnSameTile(&GameState->PlayerP, &NewPlayerP))
 				{
@@ -498,6 +515,27 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 					}
 				}
 				GameState->PlayerP = NewPlayerP;
+			}
+			else
+			{
+				v2 r = {0, 0};
+				if(CollisionPt.AbsTileX < GameState->PlayerP.AbsTileX)
+				{
+					r = {1, 0};
+				}
+				if(CollisionPt.AbsTileX > GameState->PlayerP.AbsTileX)
+				{
+					r = {-1, 0};
+				}
+				if(CollisionPt.AbsTileY < GameState->PlayerP.AbsTileY)
+				{
+					r = {0, 1};
+				}
+				if(CollisionPt.AbsTileY > GameState->PlayerP.AbsTileY)
+				{
+					r = {0, -1};
+				}
+				GameState->dPlayerP = GameState->dPlayerP - 1 * Dot(GameState->dPlayerP, r) * r;
 			}
 			GameState->CameraP.AbsTileZ = GameState->PlayerP.AbsTileZ;
 			tile_map_difference Diff = Subtract(TileMap, &GameState->PlayerP, &GameState->CameraP);
