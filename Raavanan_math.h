@@ -82,5 +82,11 @@ inline float Dot (v2 A, v2 B)
     float Result = A.X * B.X + A.Y * B.Y;
     return Result;
 }
+
+inline float LengthSq(v2 A)
+{
+    float Result = Dot(A, A);
+    return Result;
+}
 #define RAAVANAN_MATH_H
 #endif

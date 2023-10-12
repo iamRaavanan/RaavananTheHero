@@ -89,11 +89,16 @@ static uint32 GetTileValue (tile_map *tilemap, tile_map_position Pos)
 	uint32 TileValue = GetTileValue(tilemap, Pos.AbsTileX, Pos.AbsTileY, Pos.AbsTileZ);
 	return TileValue;
 }
+static bool IsTileValueEmpty (uint32 TileValue)
+{
+	bool Result = ((TileValue == 1) || (TileValue == 3) || (TileValue == 4));
+	return Result;
+}
 
 static bool IsValidTileMapPoint (tile_map *tilemap, tile_map_position CanonicalPos)
 {
 	uint32 TileChunkValue = GetTileValue (tilemap,  CanonicalPos);
-	bool Result = ((TileChunkValue == 1) || (TileChunkValue == 3) || (TileChunkValue == 4));
+	bool Result = IsTileValueEmpty(TileChunkValue);
 	return Result;
 }
 
@@ -128,5 +133,14 @@ inline tile_map_difference Subtract (tile_map *TileMap, tile_map_position *A, ti
 
 	Result.dXY = TileMap->TileSideInMeters * dTile + A->Offset - B->Offset;
 	Result.dZ = TileMap->TileSideInMeters * dTileZ +  0.0f;
+	return Result;
+}
+
+inline tile_map_position CenteredTilePoint (uint32 AbsTileX, uint32 AbsTileY,uint32 AbsTileZ)
+{
+	tile_map_position Result = {};
+	Result.AbsTileX = AbsTileX;
+	Result.AbsTileY = AbsTileY;
+	Result.AbsTileZ = AbsTileZ;
 	return Result;
 }

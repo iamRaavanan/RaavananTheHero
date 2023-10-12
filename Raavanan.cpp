@@ -474,10 +474,12 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
 			tile_map_position NewPlayerP = GameState->PlayerP;
 			//Position =  1/2 * acceleration * square(time) + velocity * time + position
-			NewPlayerP.Offset = (0.5f * ddPlayerP * Square(Input->deltaTime) + GameState->dPlayerP * Input->deltaTime + NewPlayerP.Offset);
+			v2 PlayerDelta = 0.5f * ddPlayerP * Square(Input->deltaTime) + GameState->dPlayerP * Input->deltaTime;
+			NewPlayerP.Offset += PlayerDelta;
 			GameState->dPlayerP = ddPlayerP * Input->deltaTime + GameState->dPlayerP;	
 			NewPlayerP = ReCanonicalizePosition(TileMap, NewPlayerP);
 
+#if 1
 			tile_map_position PlayerLeft = NewPlayerP;
 			PlayerLeft.Offset.X -= 0.5f * PlayerWidth;
 			PlayerLeft = ReCanonicalizePosition(TileMap, PlayerLeft);
@@ -528,6 +530,31 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 			{
 				GameState->PlayerP = NewPlayerP;
 			}			
+#else 
+			uint32 MintileX = 0;
+			uint32 MintileY = 0;
+			uint32 OnePastMaxTileX = 0;
+			uint32 OnePastMaxTileY = 0;
+			uint32 AbsTileZ = GameState->PlayerP.AbsTileZ;
+			tile_map_position BestPlayerP = GameState->PlayerP;
+			float BestDistance = LengthSq(PlayerDelta);
+			for (uint32 AbsTileY = MintileY; AbsTileY != OnePastMaxTileY; ++AbsTileY)
+			{
+				for (uint32 AbsTileX = MintileX; AbsTileX != OnePastMaxTileX; ++AbsTileX)
+				{
+					tile_map_position TestTileP = CenteredTilePoint (AbsTileX, AbsTileY, AbsTileZ);
+					uint32 TileValue = GetTileValue(TileMap, TestTileP);
+					if(IsTileValueEmpty(TileValue))
+					{
+						v2 MinCorner = -0.5f * v2 {TileMap->TileSideInMeters, TileMap->TileSideInMeters};
+						v2 MaxCorner = 0.5f * v2 {TileMap->TileSideInMeters, TileMap->TileSideInMeters};
+
+						tile_map_difference RelNewPlayerP = Subtract(TileMap, &TestTileP, &NewPlayerP);
+						v2 TestP = ClosePointInRect (MinCorner, MaxCorner, RelNewPlayerP);
+					}
+				}
+			}
+#endif
 			// char TextBuffer[256];
 			// sprintf_s(TextBuffer, "T-ID:%f R: %f \n", GameState->PlayerX, GameState->PlayerY);
 			// OutputDebugStringA(TextBuffer);
