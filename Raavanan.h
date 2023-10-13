@@ -42,16 +42,27 @@ struct hero_bitmaps
 	loaded_bitmap Torso;
 };
 
+struct entity
+{
+	bool Exists;
+	tile_map_position Pos;
+	v2 dPlayerP;
+	uint32 FacingDirection;
+};
+
 struct game_state
 {
 	world *World;
-	memory_arena WorldArena;
-	tile_map_position PlayerP;
-	v2 dPlayerP;
+	memory_arena WorldArena;	
 
+	uint32 CameraFollowingEntityIndex;
 	tile_map_position CameraP;
+
+	uint32 PlayerControllerIndex[ArrayCount(((game_input *)0)->Controllers)];
+	uint32 EntityCount;
+	entity Entities[256];
+
 	loaded_bitmap Backdrop;
-	uint32 HeroFacingDirection;
 	hero_bitmaps HeroBitmaps[4];
 #if RAAVANAN_INTERNAL
 	int ToneHz;

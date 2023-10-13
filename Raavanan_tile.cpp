@@ -144,3 +144,4 @@ inline tile_map_position CenteredTilePoint (uint32 AbsTileX, uint32 AbsTileY,uin
 	Result.AbsTileZ = AbsTileZ;
 	return Result;
 }
+	
