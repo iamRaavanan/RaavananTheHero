@@ -1,10 +1,23 @@
 #ifndef RAAVANAN_INTRINSICS_H
 #include "Raavanan.h"
 #include "math.h"
+#include "stdlib.h"
 
 inline float AbsoluteValue (float Value)
 {
 	float Result = (float)fabs(Value);
+	return Result;
+}
+
+inline uint32 RotateLeft (uint32 Value, int32 Amt)
+{
+	uint32 Result = _rotl(Value, Amt);
+	return Result;
+}
+
+inline uint32 RotateRight (uint32 Value, int32 Amt)
+{
+	uint32 Result = _rotr(Value, Amt);
 	return Result;
 }
 

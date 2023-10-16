@@ -177,7 +177,7 @@ static loaded_bitmap DEBUGLoadBMP (thread_context *Thread, debug_read_entire_fil
 		uint32 GreenMask = Header->GreenMask;
 		uint32 BlueMask = Header->BlueMask;
 		uint32 AlphaMask = ~(RedMask | GreenMask | BlueMask);
-
+#if 1
 		bit_scan_result RedShift = FindLSBSetBit(RedMask);
 		bit_scan_result GreenShift = FindLSBSetBit(GreenMask);
 		bit_scan_result BlueShift = FindLSBSetBit(BlueMask);
@@ -206,6 +206,41 @@ static loaded_bitmap DEBUGLoadBMP (thread_context *Thread, debug_read_entire_fil
 				// SrcDst +=
 			}
 		}
+#else
+		bit_scan_result RedScan = FindLSBSetBit(RedMask);
+		bit_scan_result GreenScan = FindLSBSetBit(GreenMask);
+		bit_scan_result BlueScan = FindLSBSetBit(BlueMask);
+		bit_scan_result AlphaScan = FindLSBSetBit(AlphaMask);
+
+		Assert(RedScan.Found);
+		Assert(GreenScan.Found);
+		Assert(BlueScan.Found);
+		Assert(AlphaScan.Found);
+		
+		int32 RedShift = 16 - (int32)RedScan.Index;
+		int32 GreenShift = 8 - (int32)GreenScan.Index;
+		int32 BlueShift = 0 - (int32)BlueScan.Index;
+		int32 AlphaShift = 16 - (int32)AlphaScan.Index;
+		
+		uint32 *SrcDst = Pixels;
+		for (int32 Y = 0; Y < Header->Height; ++Y)
+		{
+			for (int32 X = 0; X < Header->Width; ++X)
+			{
+				uint32 C = *SrcDst;
+				*SrcDst++ = (RotateLeft(C & RedMask, RedShift) |
+							RotateLeft(C & GreenMask, GreenShift) |
+							RotateLeft(C & BlueMask, BlueShift) |
+							RotateLeft(C & AlphaMask, AlphaShift));
+				// uint8 C0 = SrcDst[0];	// Alpha
+				// uint8 C1 = SrcDst[1];	// Blue	
+				// uint8 C2 = SrcDst[2];	// Green	
+				// uint8 C3 = SrcDst[3];	// Red	
+				// *(uint32 *)SrcDst = (C0 << 24) | (C3 << 16) | (C2 << 8) | (C1 << 0);
+				// SrcDst +=
+			}
+		}
+#endif
 	}
 	return Result;
 }
@@ -235,8 +270,9 @@ static uint32 AddEntity(game_state* GameState)
 	*Entity = {};
 	return EntityIndex;
 }
-static void InitializePlayer (entity *Entity)
+static void InitializePlayer (game_state* GameState, uint32 EntityIndex)
 {
+	entity *Entity = GetEntity(GameState, EntityIndex);
 	Entity->Exists = true;
 	Entity->Pos.AbsTileX = 3;
 	Entity->Pos.AbsTileY = 2;
@@ -244,6 +280,10 @@ static void InitializePlayer (entity *Entity)
 	Entity->Pos.Offset.Y = 5.0f;
 	Entity->Height = 1.4f;
 	Entity->Width = 0.75f * Entity->Height;
+	if(!GetEntity(GameState, GameState->CameraFollowingEntityIndex))
+	{
+		GameState->CameraFollowingEntityIndex = EntityIndex;
+	}
 }
 
 static void MovePlayer (game_state* GameState, entity* Entity, float deltaTime, v2 ddPlayer)
@@ -358,7 +398,11 @@ static void MovePlayer (game_state* GameState, entity* Entity, float deltaTime, 
 		}
 	}
 	
-	if(AbsoluteValue(Entity->dPlayerP.X) > AbsoluteValue(Entity->dPlayerP.Y))
+	if((Entity->dPlayerP.X == 0.0f) && (Entity->dPlayerP.Y == 0.0f))
+	{
+
+	}
+	else if(AbsoluteValue(Entity->dPlayerP.X) > AbsoluteValue(Entity->dPlayerP.Y))
 	{
 		if(Entity->dPlayerP.X > 0)
 		{
@@ -369,7 +413,7 @@ static void MovePlayer (game_state* GameState, entity* Entity, float deltaTime, 
 			Entity->FacingDirection = 2;
 		}
 	}
-	else if(AbsoluteValue(Entity->dPlayerP.X) < AbsoluteValue(Entity->dPlayerP.Y))
+	else
 	{
 		if(Entity->dPlayerP.Y > 0)
 		{
@@ -625,8 +669,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 			if(Controller->Start.EndedDown)
 			{
 				uint32 EntityIndex = AddEntity(GameState);
-				ControllingEntity = GetEntity(GameState, EntityIndex);
-				InitializePlayer(ControllingEntity);
+				InitializePlayer(GameState, EntityIndex);
 				GameState->PlayerControllerIndex[ControllerIndex] = EntityIndex;
 			}
 		}
