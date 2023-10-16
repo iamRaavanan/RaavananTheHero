@@ -661,11 +661,11 @@ static void Win32ProcessMessage (Win32_RecordingState *RecordingState, game_cont
 					}
 					else if(VKCode == VK_ESCAPE)
 					{
-						Win32ProcessKeyboardMessage (&KeyboardController->Start, KeyIsDown);
+						Win32ProcessKeyboardMessage (&KeyboardController->Back, KeyIsDown);
 					}
 					else if(VKCode == VK_SPACE)
 					{
-						Win32ProcessKeyboardMessage (&KeyboardController->Back, KeyIsDown);
+						Win32ProcessKeyboardMessage (&KeyboardController->Start, KeyIsDown);
 					}
 #if RAAVANAN_INTERNAL
 					else if (VKCode == 'P')

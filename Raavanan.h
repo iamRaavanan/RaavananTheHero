@@ -45,6 +45,8 @@ struct hero_bitmaps
 struct entity
 {
 	bool Exists;
+	float Height;
+	float Width;
 	tile_map_position Pos;
 	v2 dPlayerP;
 	uint32 FacingDirection;

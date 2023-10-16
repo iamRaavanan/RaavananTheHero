@@ -2,6 +2,12 @@
 #include "Raavanan.h"
 #include "math.h"
 
+inline float AbsoluteValue (float Value)
+{
+	float Result = (float)fabs(Value);
+	return Result;
+}
+
 inline uint32 RoundFloatToUInt32(float value)
 {
 	uint32 Result = (uint32)roundf(value);
