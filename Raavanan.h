@@ -1,6 +1,9 @@
 #ifndef RAAVANAN_H
 #include "Raavanan_Platform.h"
 
+#define Minimum(A, B) ((A < B) ? (A) : (B))
+#define Maximum(A, B) ((A > B) ? (A) : (B))
+
 struct memory_arena
 {
 	size_t Size;

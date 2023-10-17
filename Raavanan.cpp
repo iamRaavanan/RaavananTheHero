@@ -289,9 +289,11 @@ static void InitializePlayer (game_state* GameState, uint32 EntityIndex)
 static void MovePlayer (game_state* GameState, entity* Entity, float deltaTime, v2 ddPlayer)
 {
 	tile_map* TileMap = GameState->World->TileMap;
-	if((ddPlayer.X != 0.0f) &&(ddPlayer.Y != 0.0f))
+
+	float ddPLength = LengthSq(ddPlayer);
+	if(ddPLength > 1.0f)
 	{
-		ddPlayer *= 0.7071067811865f;
+		ddPlayer *= (1.0f / SquareRoot(ddPLength));
 	}
 
 	float PlayerSpeed = 50.0f;
@@ -359,14 +361,13 @@ static void MovePlayer (game_state* GameState, entity* Entity, float deltaTime, 
 	{
 		Entity->Pos = NewPlayerP;
 	}			
-#else 
-	uint32 MintileX = 0;
-	uint32 MintileY = 0;
-	uint32 OnePastMaxTileX = 0;
-	uint32 OnePastMaxTileY = 0;
+#else
+	uint32 MintileX = Minimum(OldPlayerP.AbsTileX, NewPlayerP.AbsTileX);
+	uint32 MintileY = Minimum(OldPlayerP.AbsTileY, NewPlayerP.AbsTileY);
+	uint32 OnePastMaxTileX = Maximum(OldPlayerP.AbsTileX, NewPlayerP.AbsTileX) + 1;
+	uint32 OnePastMaxTileY = Maximum(OldPlayerP.AbsTileY, NewPlayerP.AbsTileY) + 1;
 	uint32 AbsTileZ = Entity->Pos.AbsTileZ;
-	tile_map_position BestPlayerP = Entity->Pos;
-	float BestDistance = LengthSq(PlayerDelta);
+	float tMin = 1.0f;
 	for (uint32 AbsTileY = MintileY; AbsTileY != OnePastMaxTileY; ++AbsTileY)
 	{
 		for (uint32 AbsTileX = MintileX; AbsTileX != OnePastMaxTileX; ++AbsTileX)
@@ -379,7 +380,7 @@ static void MovePlayer (game_state* GameState, entity* Entity, float deltaTime, 
 				v2 MaxCorner = 0.5f * v2 {TileMap->TileSideInMeters, TileMap->TileSideInMeters};
 
 				tile_map_difference RelNewPlayerP = Subtract(TileMap, &TestTileP, &NewPlayerP);
-				v2 TestP = ClosePointInRect (MinCorner, MaxCorner, RelNewPlayerP);
+				
 			}
 		}
 	}

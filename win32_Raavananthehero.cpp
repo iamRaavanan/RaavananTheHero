@@ -994,7 +994,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 								// Controller is plugged-in
 								XINPUT_GAMEPAD *Pad = &ControllerState.Gamepad;
 															
-								NewController->IsAnalog = true;
+								// NewController->IsAnalog = true;
 								NewController->StickAverageX = Win32ProcessXInputStickValue(Pad->sThumbLX, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
 								NewController->StickAverageY = Win32ProcessXInputStickValue(Pad->sThumbLY, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE);
 
@@ -1004,30 +1004,30 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 								}
 								if (Pad->wButtons & XINPUT_GAMEPAD_DPAD_UP)
 								{
-									NewController->StickAverageY = 1;
+									NewController->StickAverageY = 1.0f;
 									NewController->IsAnalog = false;
 								}
 								if (Pad->wButtons & XINPUT_GAMEPAD_DPAD_DOWN)
 								{
-									NewController->StickAverageY = -1;
+									NewController->StickAverageY = -1.0f;
 									NewController->IsAnalog = false;
 								}
 								if (Pad->wButtons & XINPUT_GAMEPAD_DPAD_LEFT)
 								{
-									NewController->StickAverageX = -1;
+									NewController->StickAverageX = -1.0f;
 									NewController->IsAnalog = false;
 								}
 								if (Pad->wButtons & XINPUT_GAMEPAD_DPAD_RIGHT)
 								{
-									NewController->StickAverageX = 1;
+									NewController->StickAverageX = 1.0f;
 									NewController->IsAnalog = false;
 								}
 
 								float Threshold = 0.5f;
-								Win32ProcessXInputDigitalButton ((NewController->StickAverageX < -Threshold) ? 1 : 0, &OldController->MoveDown, 1, &NewController->MoveDown);
-								Win32ProcessXInputDigitalButton ((NewController->StickAverageX > Threshold) ? 1 : 0, &OldController->MoveUp, 1, &NewController->MoveUp);
-								Win32ProcessXInputDigitalButton ((NewController->StickAverageY < -Threshold) ? 1 : 0, &OldController->MoveRight, 1, &NewController->MoveRight);
-								Win32ProcessXInputDigitalButton ((NewController->StickAverageY > -Threshold) ? 1 : 0, &OldController->MoveLeft, 1, &NewController->MoveLeft);
+								Win32ProcessXInputDigitalButton ((NewController->StickAverageX < -Threshold) ? 1 : 0, &OldController->MoveLeft, 1, &NewController->MoveLeft);
+								Win32ProcessXInputDigitalButton ((NewController->StickAverageX > Threshold) ? 1 : 0, &OldController->MoveRight, 1, &NewController->MoveRight);
+								Win32ProcessXInputDigitalButton ((NewController->StickAverageY < -Threshold) ? 1 : 0, &OldController->MoveDown, 1, &NewController->MoveDown);
+								Win32ProcessXInputDigitalButton ((NewController->StickAverageY > Threshold) ? 1 : 0, &OldController->MoveUp, 1, &NewController->MoveUp);
 
 								Win32ProcessXInputDigitalButton (Pad->wButtons, &OldController->ActionDown, XINPUT_GAMEPAD_A, &NewController->ActionDown);
 								Win32ProcessXInputDigitalButton (Pad->wButtons, &OldController->ActionRight, XINPUT_GAMEPAD_B, &NewController->ActionRight);

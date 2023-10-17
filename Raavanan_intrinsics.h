@@ -3,6 +3,12 @@
 #include "math.h"
 #include "stdlib.h"
 
+inline float SquareRoot (float value)
+{
+	float Result = sqrtf (value);
+	return Result;
+}
+
 inline float AbsoluteValue (float Value)
 {
 	float Result = (float)fabs(Value);
