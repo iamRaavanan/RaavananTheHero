@@ -276,8 +276,8 @@ static void InitializePlayer (game_state* GameState, uint32 EntityIndex)
 	Entity->Exists = true;
 	Entity->Pos.AbsTileX = 3;
 	Entity->Pos.AbsTileY = 2;
-	Entity->Pos.Offset.X = 5.0f;
-	Entity->Pos.Offset.Y = 5.0f;
+	Entity->Pos.Offset.X = 0.0f;
+	Entity->Pos.Offset.Y = 0.0f;
 	Entity->Height = 1.4f;
 	Entity->Width = 0.75f * Entity->Height;
 	if(!GetEntity(GameState, GameState->CameraFollowingEntityIndex))
@@ -321,9 +321,8 @@ static void MovePlayer (game_state* GameState, entity* Entity, float deltaTime, 
 	tile_map_position OldPlayerP = Entity->Pos;
 	v2 PlayerDelta = 0.5f * ddPlayer * Square(deltaTime) + Entity->dPlayerP * deltaTime;
 	Entity->dPlayerP = ddPlayer * deltaTime + Entity->dPlayerP;
-	tile_map_position NewPlayerP = OldPlayerP;
-	NewPlayerP.Offset += PlayerDelta;
-	NewPlayerP = ReCanonicalizePosition(TileMap, NewPlayerP);
+	tile_map_position NewPlayerP = Offset(TileMap, OldPlayerP, PlayerDelta);
+	
 	
 #if 0
 	//Position =  1/2 * acceleration * square(time) + velocity * time + position
@@ -379,15 +378,27 @@ static void MovePlayer (game_state* GameState, entity* Entity, float deltaTime, 
 		Entity->Pos = NewPlayerP;
 	}			
 #else
+#if 0
 	uint32 MintileX = Minimum(OldPlayerP.AbsTileX, NewPlayerP.AbsTileX);
 	uint32 MintileY = Minimum(OldPlayerP.AbsTileY, NewPlayerP.AbsTileY);
 	uint32 OnePastMaxTileX = Maximum(OldPlayerP.AbsTileX, NewPlayerP.AbsTileX) + 1;
 	uint32 OnePastMaxTileY = Maximum(OldPlayerP.AbsTileY, NewPlayerP.AbsTileY) + 1;
+#else
+	uint32 StartTileX = OldPlayerP.AbsTileX;
+	uint32 StartTileY = OldPlayerP.AbsTileY;
+	uint32 EndTileX = NewPlayerP.AbsTileX;
+	uint32 EndTileY = NewPlayerP.AbsTileY;
+
+	int32 DeltaX = SignOf(EndTileX - StartTileX);
+	int32 DeltaY = SignOf(EndTileY - StartTileY);
+#endif
 	uint32 AbsTileZ = Entity->Pos.AbsTileZ;
 	float tMin = 1.0f;
-	for (uint32 AbsTileY = MintileY; AbsTileY != OnePastMaxTileY; ++AbsTileY)
+	uint32 AbsTileY = StartTileY;
+	for (;;)
 	{
-		for (uint32 AbsTileX = MintileX; AbsTileX != OnePastMaxTileX; ++AbsTileX)
+		uint32 AbsTileX = StartTileX;
+		for (;;)
 		{
 			tile_map_position TestTileP = CenteredTilePoint (AbsTileX, AbsTileY, AbsTileZ);
 			uint32 TileValue = GetTileValue(TileMap, TestTileP);
@@ -404,12 +415,25 @@ static void MovePlayer (game_state* GameState, entity* Entity, float deltaTime, 
 				TestWall (MinCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X, &tMin, MinCorner.X, MaxCorner.X);
 				TestWall (MaxCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X, &tMin, MinCorner.X, MaxCorner.X);
 			}
+			if(AbsTileX == EndTileX)
+			{
+				break;
+			}
+			else
+			{
+				AbsTileX += DeltaX;
+			}
+		}
+		if(AbsTileY == EndTileY)
+		{
+			break;
+		}
+		else
+		{
+			AbsTileY += DeltaY;
 		}
 	}
-	NewPlayerP = OldPlayerP;
-	NewPlayerP.Offset += tMin * PlayerDelta;
-	Entity->Pos = NewPlayerP;
-	NewPlayerP = ReCanonicalizePosition(TileMap, NewPlayerP);
+	Entity->Pos = Offset(TileMap, OldPlayerP, (tMin * PlayerDelta));
 #endif
 
 	if(!AreOnSameTile(&OldPlayerP, &Entity->Pos))

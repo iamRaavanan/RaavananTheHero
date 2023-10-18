@@ -3,6 +3,12 @@
 #include "math.h"
 #include "stdlib.h"
 
+inline int32 SignOf (int32 value)
+{
+	int32 Result = (value >= 0) ? 1 : -1;
+	return Result;
+}
+
 inline float SquareRoot (float value)
 {
 	float Result = sqrtf (value);
