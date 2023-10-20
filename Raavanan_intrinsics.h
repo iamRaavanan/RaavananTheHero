@@ -52,6 +52,12 @@ inline int32 FloorFloatToInt32(float value)
 	return Result;
 }
 
+inline int32 CeilFloatToInt32(float value)
+{
+	int32 Result = (int32)ceilf(value);
+	return Result;
+}
+
 inline int32 TruncateFloatToInt32(float value)
 {
 	int32 Result = (int32)(value);

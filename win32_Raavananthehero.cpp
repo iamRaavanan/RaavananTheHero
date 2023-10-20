@@ -667,7 +667,7 @@ static void Win32ProcessMessage (Win32_RecordingState *RecordingState, game_cont
 					{
 						Win32ProcessKeyboardMessage (&KeyboardController->Start, KeyIsDown);
 					}
-#if RAAVANAN_INTERNAL
+#if 1/*RAAVANAN_INTERNAL*/
 					else if (VKCode == 'P')
 					{
 						if(KeyIsDown)
@@ -1040,7 +1040,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 								Win32ProcessXInputDigitalButton (Pad->wButtons, &OldController->Start, XINPUT_GAMEPAD_START, &NewController->Start);
 							}
 							else {
-								// Controller is not available
+ 								// Controller is not available
 								NewController->IsConnected = false;
 							}
 						}
