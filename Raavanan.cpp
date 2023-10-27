@@ -76,7 +76,7 @@ static void RenderRectangle(game_offscreen_buffer *Buffer, v2 vMin, v2 vMax, flo
 	}
 }
 
-static void RenderBitMap(game_offscreen_buffer *Buffer, loaded_bitmap *Bitmap, float realX, float realY, int32 AlignX = 0, int32 AlignY = 0)
+static void RenderBitMap(game_offscreen_buffer *Buffer, loaded_bitmap *Bitmap, float realX, float realY, int32 AlignX = 0, int32 AlignY = 0, float CAlpha = 1.0f)
 {
 	realX -= AlignX;
 	realY -= AlignY;
@@ -111,6 +111,7 @@ static void RenderBitMap(game_offscreen_buffer *Buffer, loaded_bitmap *Bitmap, f
 		for (int x = MinX; x < MaxX; ++x)
 		{
 			float A = (float)((*Src >> 24) & 0xFF) / 255.0f;
+			A *= CAlpha;
 			float SR = (float)((*Src >> 16) & 0xFF);
 			float SG = (float)((*Src >> 8) & 0xFF);
 			float SB = (float)((*Src >> 0) & 0xFF);
@@ -467,7 +468,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 		// Null Entity,
 		AddEntity (GameState);
 		GameState->Backdrop = DEBUGLoadBMP (Thread, Memory->DEBUGReadEntireFile, "test/test_background.bmp");
-		
+		GameState->Shadow = DEBUGLoadBMP (Thread, Memory->DEBUGReadEntireFile, "test/test_hero_shadow.bmp");
 		hero_bitmaps *Bitmap = GameState->HeroBitmaps;
 		Bitmap->Head = DEBUGLoadBMP(Thread, Memory->DEBUGReadEntireFile, "test/test_hero_right_head.bmp");
 		Bitmap->Cape = DEBUGLoadBMP(Thread, Memory->DEBUGReadEntireFile, "test/test_hero_right_cape.bmp");
@@ -689,6 +690,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 				{
 					ddPlayerP.X = -1.0f;
 				}
+				if (Controller->ActionUp.EndedDown)
+				{
+					ControllingEntity.High->dZ = 3.0f;
+				}
 				MovePlayer(GameState, ControllingEntity, Input->deltaTime, ddPlayerP);
 				// char TextBuffer[256];
 				// sprintf_s(TextBuffer, "T-ID:%f R: %f \n", GameState->PlayerX, GameState->PlayerY);
@@ -784,18 +789,32 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
 			HighEntity->Pos += EntityOffsetForFrame;
 			
+			float dt = Input->deltaTime;
+			float ddZ = -9.8f;
+			HighEntity->Z += (0.5f * ddZ * Square(dt) + HighEntity->dZ * dt);
+			HighEntity->dZ = ddZ * dt + HighEntity->dZ;
+			if (HighEntity->Z < 0)
+			{
+				HighEntity->Z = 0;
+			}
+			float CAlpha = 1.0f - 0.5f * HighEntity->Z;
+			CAlpha = (CAlpha < 0.0f) ? 0.0f : CAlpha;
 			float PlayerR = 1.0f;
 			float PlayerG = 0.4f;
 			float PlayerB = 0.7f;
 			float PlayerGroundPointX = ScreenCenterX + MeterToPixels * HighEntity->Pos.X;
 			float PlayerGroundPointY = ScreenCenterY - MeterToPixels * HighEntity->Pos.Y;
+			float Z = -MeterToPixels * HighEntity->Z;
 			v2 PlayerLeftTop = {PlayerGroundPointX - 0.5f * MeterToPixels * DormantEntity->Width, PlayerGroundPointY - 0.5f * MeterToPixels * DormantEntity->Height};
 			v2 EntiryWidthHeight = {DormantEntity->Width, DormantEntity->Height};
+#if 0
 			RenderRectangle(Buffer, PlayerLeftTop, PlayerLeftTop + MeterToPixels * EntiryWidthHeight, PlayerR, PlayerG, PlayerB);	
+#endif
 			hero_bitmaps *HeroBitsmaps = &GameState->HeroBitmaps[HighEntity->FacingDirection];
-			RenderBitMap(Buffer, &HeroBitsmaps->Torso, PlayerGroundPointX, PlayerGroundPointY, HeroBitsmaps->AlignX, HeroBitsmaps->AlignY);
-			RenderBitMap(Buffer, &HeroBitsmaps->Cape, PlayerGroundPointX, PlayerGroundPointY, HeroBitsmaps->AlignX, HeroBitsmaps->AlignY);
-			RenderBitMap(Buffer, &HeroBitsmaps->Head, PlayerGroundPointX, PlayerGroundPointY, HeroBitsmaps->AlignX, HeroBitsmaps->AlignY);
+			RenderBitMap(Buffer, &GameState->Shadow, PlayerGroundPointX, PlayerGroundPointY, HeroBitsmaps->AlignX, HeroBitsmaps->AlignY, CAlpha);
+			RenderBitMap(Buffer, &HeroBitsmaps->Torso, PlayerGroundPointX, PlayerGroundPointY + Z, HeroBitsmaps->AlignX, HeroBitsmaps->AlignY);
+			RenderBitMap(Buffer, &HeroBitsmaps->Cape, PlayerGroundPointX, PlayerGroundPointY + Z, HeroBitsmaps->AlignX, HeroBitsmaps->AlignY);
+			RenderBitMap(Buffer, &HeroBitsmaps->Head, PlayerGroundPointX, PlayerGroundPointY + Z, HeroBitsmaps->AlignX, HeroBitsmaps->AlignY);
 		}
 	}
 }

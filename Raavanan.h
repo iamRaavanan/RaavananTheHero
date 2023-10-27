@@ -49,6 +49,8 @@ struct high_entity
 {
 	v2 Pos;
 	v2 dPlayerP;
+	float Z;
+	float dZ;
 	uint32 AbsTileZ;
 	uint32 FacingDirection;
 };
@@ -98,6 +100,7 @@ struct game_state
 	dormant_entity DormantEntities[256];
 
 	loaded_bitmap Backdrop;
+	loaded_bitmap Shadow;
 	hero_bitmaps HeroBitmaps[4];
 #if RAAVANAN_INTERNAL
 	int ToneHz;
