@@ -47,9 +47,9 @@ struct hero_bitmaps
 
 struct high_entity
 {
-	bool Exists;
 	v2 Pos;
 	v2 dPlayerP;
+	uint32 AbsTileZ;
 	uint32 FacingDirection;
 };
 
@@ -63,6 +63,8 @@ struct dormant_entity
 	tile_map_position Pos;
 	float Height;
 	float Width;
+	bool Collides;
+	int32 dAbsTileZ;
 };
 
 enum entity_residence

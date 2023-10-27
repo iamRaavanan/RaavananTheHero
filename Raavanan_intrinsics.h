@@ -23,13 +23,25 @@ inline float AbsoluteValue (float Value)
 
 inline uint32 RotateLeft (uint32 Value, int32 Amt)
 {
-	uint32 Result = _rotl(Value, Amt);
+	uint32 Result;
+#if COMPILER_MSVC
+	Result = _rotl(Value, Amt);
+#else
+	Amt &= 31;
+	Result = (Value << Amt) | (Value >> (32- Amt));
+#endif
 	return Result;
 }
 
 inline uint32 RotateRight (uint32 Value, int32 Amt)
 {
-	uint32 Result = _rotr(Value, Amt);
+	uint32 Result;
+#if COMPILER_MSVC
+	Result = _rotr(Value, Amt);
+#else
+	Amt &= 31;
+	Result = (Value >> Amt) | (Value << (32- Amt));
+#endif
 	return Result;
 }
 
