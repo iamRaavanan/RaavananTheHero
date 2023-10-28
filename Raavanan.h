@@ -45,6 +45,13 @@ struct hero_bitmaps
 	loaded_bitmap Torso;
 };
 
+enum entity_type
+{
+	EntityType_None,
+	EntityType_Hero,
+	EntityType_Wall
+};
+
 struct high_entity
 {
 	v2 Pos;
@@ -62,6 +69,7 @@ struct low_entity
 
 struct dormant_entity
 {
+	entity_type Type;
 	tile_map_position Pos;
 	float Height;
 	float Width;
