@@ -39,7 +39,7 @@ typedef uint64_t uint64;
 #define PI 3.14159265359
 
 #define Assert(Expression) if(!(Expression)) { *(int *) 0 = 0;}
-
+#define InvalidCodePath Assert(!"InvalidCodePath");
 #define Kilobytes(value) ((value) * 1024LL)
 #define Megabytes(value) (Kilobytes(value) * 1024LL)
 #define Gigabytes(value) (Megabytes(value) * 1024LL)
