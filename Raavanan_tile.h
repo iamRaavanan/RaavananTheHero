@@ -9,40 +9,41 @@ struct tile_map_difference
 struct tile_map_position
 {
 	// Note: Fixexd tile position.  High bits for Tile chunk index, Low bits for Tile index in the chunk
-	uint32 AbsTileX;
-	uint32 AbsTileY;
-	uint32 AbsTileZ;
+	int32 AbsTileX;
+	int32 AbsTileY;
+	int32 AbsTileZ;
 	// Tile relative X & Y
 	v2 Offset;
 };
 
 struct tile_chunk_position
 {
-	uint32 TileChunkX;
-	uint32 TileChunkY;
-	uint32 TileChunkZ;
+	int32 TileChunkX;
+	int32 TileChunkY;
+	int32 TileChunkZ;
 
-	uint32 RelTileX;
-	uint32 RelTileY;
+	int32 RelTileX;
+	int32 RelTileY;
 };
 
 struct tile_chunk
 {
+	int32 TileChunkX;
+	int32 TileChunkY;
+	int32 TileChunkZ;
 	uint32 *Tiles;
+	tile_chunk *NextInHash;
 };
 
 struct tile_map
 {
-	uint32 ChunkShift;
-	uint32 ChunkMask;
-	uint32 ChunkDim;
+	int32 ChunkShift;
+	int32 ChunkMask;
+	int32 ChunkDim;
 
 	float TileSideInMeters;
 	
-	uint32 TileChunkXCount;
-	uint32 TileChunkYCount;
-	uint32 TileChunkZCount;
-	tile_chunk *TileChunks;
+	tile_chunk TileChunkHash[4096];
 };
 #define RAAVANAN_TILE_H
 #endif
