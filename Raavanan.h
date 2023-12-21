@@ -23,11 +23,7 @@ void *PushSize_(memory_arena *MemoryArena, size_t Size)
 
 #include <math.h>
 #include "Raavanan_math.h"
-#include "Raavanan_tile.h"
-struct world
-{
-	tile_map *TileMap;
-};
+#include "Raavanan_world.h"
 
 struct loaded_bitmap
 {
@@ -67,7 +63,7 @@ struct high_entity
 struct low_entity
 {
 	entity_type Type;
-	tile_map_position Pos;
+	world_position Pos;
 	float Height;
 	float Width;
 	bool Collides;
@@ -83,20 +79,26 @@ struct entity
 	high_entity* High;
 };
 
+struct low_entity_chunk_reference
+{
+	world_chunk *TileChunk;
+	uint32 EntityIndexInChunk;
+};
+
 struct game_state
 {
 	world *World;
 	memory_arena WorldArena;	
 
 	uint32 CameraFollowingEntityIndex;
-	tile_map_position CameraP;
+	world_position CameraP;
 
 	uint32 PlayerControllerIndex[ArrayCount(((game_input *)0)->Controllers)];
 	uint32 EntityCount;
 	uint32 HighEntityCount;
 	high_entity HighEntities[256];
 	uint32 LowEntityCount;
-	low_entity LowEntities[4096];
+	low_entity LowEntities[100000];
 
 	loaded_bitmap Backdrop;
 	loaded_bitmap Shadow;
