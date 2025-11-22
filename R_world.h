@@ -1,4 +1,4 @@
-#ifndef RAAVANAN_WORLD_H
+#ifndef R_WORLD_H
 
 struct world_difference
 {
@@ -53,5 +53,5 @@ struct world
 	
 	world_chunk TileChunkHash[4096];
 };
-#define RAAVANAN_WORLD_H
+#define R_WORLD_H
 #endif

@@ -1,5 +1,5 @@
-#ifndef RAAVANAN_INTRINSICS_H
-#include "Raavanan.h"
+#ifndef R_INTRINSICS_H
+#include "R.h"
 #include "math.h"
 #include "stdlib.h"
 
@@ -117,5 +117,5 @@ inline bit_scan_result FindLSBSetBit (uint32 Value)
 	return Result;
 }
 
-#define RAAVANAN_INTRINSICS_H
+#define R_INTRINSICS_H
 #endif

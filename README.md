@@ -1,4 +1,4 @@
-# RaavananTheHero
+# RTheHero
 Game made from scratch without any licensed engine(s), or librarie(s).
 
 ### Note:

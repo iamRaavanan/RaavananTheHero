@@ -1,4 +1,4 @@
-#ifndef WIN32_RAAVANANTHEHERO
+#ifndef WIN32_RTHEHERO
 #include <windows.h>
 
 struct win32_offscreen_buffer
@@ -65,5 +65,5 @@ struct Win32_RecordingState
 	char *OnePastLastExeFileNameSlash;
 };
 
-#define WIN32_RAAVANANTHEHERO
+#define WIN32_RTHEHERO
 #endif

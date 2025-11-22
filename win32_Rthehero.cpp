@@ -1,6 +1,6 @@
 
-#include "Raavanan_Platform.h"
-#include "win32_Raavananthehero.h"
+#include "R_Platform.h"
+#include "win32_Rthehero.h"
 #include <xinput.h>
 #include <dsound.h>
 #include <stdio.h>
@@ -171,7 +171,7 @@ static int StringLength (char *str)
 	return count;
 }
 
-static void CatStrings(int SrcALen, char *SrcA, int SrcBLen, char *SrcB, size_t DstLen, char *Dst)
+static void CatStrings(int64 SrcALen, char *SrcA, int SrcBLen, char *SrcB, size_t DstLen, char *Dst)
 {
 	for(int i = 0; i < SrcALen; i++)
 	{
@@ -189,7 +189,7 @@ static void Win32MakeEXEPathFileName(Win32_RecordingState *State, char *FileName
 	CatStrings(State->OnePastLastExeFileNameSlash - State->ExeFileName, State->ExeFileName, StringLength(FileName), FileName, DstCount, Dst);
 }
 
-// #if RAAVANAN_INTERNAL
+// #if R_INTERNAL
 DEBUG_FREE_FILE_MEMORY (DEBUGFreeFileMemory)
 {
 	if(Memory)
@@ -667,7 +667,7 @@ static void Win32ProcessMessage (Win32_RecordingState *RecordingState, game_cont
 					{
 						Win32ProcessKeyboardMessage (&KeyboardController->Start, KeyIsDown);
 					}
-#if 1/*RAAVANAN_INTERNAL*/
+#if 1/*R_INTERNAL*/
 					else if (VKCode == 'P')
 					{
 						if(KeyIsDown)
@@ -779,7 +779,7 @@ inline void Win32DrawSoundBufferMarker (win32_offscreen_buffer *Buffer, Win32_So
 	Win32DebugDrawVerticalLine(Buffer, X, Top, Bottom, Color);
 }
 
-#if RAAVANAN_INTERNAL
+#if R_INTERNAL
 static void Win32DebugSyncDisplay(win32_offscreen_buffer *Buffer, int MarkerCount, Win32_debug_time_marker *Markers, int CurrentMarkerIndex, Win32_Sound_Output *SoundOutput, float TargetSecondsPerFrame)
 {
 	int PadX = 16;
@@ -831,10 +831,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 	Win32GetEXEFileName(&RecordingState);
 
 	char SrcDLLFullPath[WIN32_STATE_FILE_NAME_COUNT];
-	Win32MakeEXEPathFileName (&RecordingState, "Raavanan.dll", sizeof(SrcDLLFullPath), SrcDLLFullPath);
+	Win32MakeEXEPathFileName (&RecordingState, "R.dll", sizeof(SrcDLLFullPath), SrcDLLFullPath);
 	
 	char TempDLLFullPath[MAX_PATH];
-	Win32MakeEXEPathFileName(&RecordingState, "Raavanan_temp.dll", sizeof(TempDLLFullPath), TempDLLFullPath);
+	Win32MakeEXEPathFileName(&RecordingState, "R_temp.dll", sizeof(TempDLLFullPath), TempDLLFullPath);
 	char GamecodeLockFullPath[MAX_PATH];
 	Win32MakeEXEPathFileName(&RecordingState, "lock.temp", sizeof(GamecodeLockFullPath), GamecodeLockFullPath);
 
@@ -849,11 +849,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 	WindowClass.style = CS_HREDRAW | CS_VREDRAW;// | CS_OWNDC;
 	WindowClass.lpfnWndProc = Win32Wndproc;
 	WindowClass.hInstance = hInstance;
-	WindowClass.lpszClassName = "RaavananTheHeroWindowClass";
+	WindowClass.lpszClassName = "RTheHeroWindowClass";
 
 	if(RegisterClass(&WindowClass))
 	{
-		HWND WindowHandle = CreateWindowExA(0/*WS_EX_TOPMOST|WS_EX_LAYERED*/, WindowClass.lpszClassName, "RaavananTheHero", WS_OVERLAPPEDWINDOW | WS_VISIBLE, 
+		HWND WindowHandle = CreateWindowExA(0/*WS_EX_TOPMOST|WS_EX_LAYERED*/, WindowClass.lpszClassName, "RTheHero", WS_OVERLAPPEDWINDOW | WS_VISIBLE, 
 							CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, 0, 0, hInstance, 0);
 		if (WindowHandle) 
 		{
@@ -892,7 +892,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 #endif
 			int16 *Samples = (int16 *)VirtualAlloc(0, SoundOutput.SecondaryBufferSize, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
 			
-#if RAAVANAN_INTERNAL
+#if R_INTERNAL
 			LPVOID BaseAddress = (LPVOID)Terabytes (2);
 #else
 			LPVOID BaseAddress = 0;
@@ -918,7 +918,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 				ReplayBuffer->MemoryMap = CreateFileMapping(ReplayBuffer->FileHandle, 0, PAGE_READWRITE, MaxSize.HighPart, MaxSize.LowPart, 0);
 				ReplayBuffer->MemoryBlock = MapViewOfFileEx (ReplayBuffer->MemoryMap, FILE_MAP_ALL_ACCESS, 0, 0, (size_t)RecordingState.TotalSize, 0);
 			}
-// #if RAAVANAN_INTERNAL		
+// #if R_INTERNAL		
 			GameMemory.DEBUGReadEntireFile = DEBUGReadEntireFile;
 			GameMemory.DEBUGFreeFileMemory = DEBUGFreeFileMemory;
 			GameMemory.DEBUGWriteEntireFile = DEBUGWriteEntireFile;			
@@ -1119,7 +1119,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 							SoundBuffer.Samples = Samples;
 							SoundBuffer.SampleCount = BytesToWrite/SoundOutput.BytesPerSample;
 							Game.GetSoundSamples (&Thread, &GameMemory, &SoundBuffer);
-	#if RAAVANAN_INTERNAL
+	#if R_INTERNAL
 							Win32_debug_time_marker *Marker = &DebugTimeMarkers[DebugTimeMarkerIndex];
 							Marker->OutputPlayCursor = PlayCursor;
 							Marker->OutputWriteCursor = WriteCursor;
@@ -1181,14 +1181,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 						LastCounter = EndCounter;
 
 						win32_window_dimension dimension = GetWindowDimension(WindowHandle);
-	#if RAAVANAN_INTERNAL
+	#if R_INTERNAL
 						Win32DebugSyncDisplay(&backBuffer, ArrayCount(DebugTimeMarkers), DebugTimeMarkers, DebugTimeMarkerIndex - 1, &SoundOutput, TargetSecondsPerFrame);
 	#endif
 						HDC DeviceContext = GetDC(WindowHandle);
 						Win32UpdateBufferInWindow (&backBuffer, DeviceContext, dimension.Width, dimension.Height);
 						ReleaseDC(WindowHandle, DeviceContext);
 						FlipWallClock = Win32GetWallClock();
-	#if RAAVANAN_INTERNAL
+	#if R_INTERNAL
 						{
 							DWORD PC = 0;
 							DWORD WC = 0;
@@ -1215,7 +1215,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 						sprintf_s(TextBuffer, "MS:%.02fms MS:%.02fmc\n", MSPerFrame, MegaCyclePerFrame);
 						OutputDebugStringA(TextBuffer);
 						#endif
-#if RAAVANAN_INTERNAL
+#if R_INTERNAL
 						++DebugTimeMarkerIndex;
 						if(DebugTimeMarkerIndex >= ArrayCount(DebugTimeMarkers))
 						{

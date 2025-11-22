@@ -1,5 +1,5 @@
-#include "Raavanan.h"
-#include "Raavanan_world.h"
+#include "R.h"
+#include "R_world.h"
 
 inline void RecanonicalizeCoord (world *tilemap, int32 *Tile, float *TileRelative)
 {
