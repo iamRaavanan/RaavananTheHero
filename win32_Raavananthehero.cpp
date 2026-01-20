@@ -171,7 +171,7 @@ static int StringLength (char *str)
 	return count;
 }
 
-static void CatStrings(int SrcALen, char *SrcA, int SrcBLen, char *SrcB, size_t DstLen, char *Dst)
+static void CatStrings(int64 SrcALen, char *SrcA, int SrcBLen, char *SrcB, size_t DstLen, char *Dst)
 {
 	for(int i = 0; i < SrcALen; i++)
 	{
