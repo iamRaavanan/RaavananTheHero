@@ -1,5 +1,5 @@
-#ifndef R_RANDOM_H
-#include "R_Platform.h"
+#ifndef RAAVANAN_RANDOM_H
+#include "Raavanan_Platform.h"
 static uint32 RandomNumberTable[] =
 {
 	0x141a466, 0x4911860, 0x02973d3, 0x5c94354,	0x329c319, 0x5238f8f, 0x4db888a, 0x27dc249,
@@ -516,5 +516,5 @@ static uint32 RandomNumberTable[] =
 	0x3f85203, 0x19b8e9d, 0x5294d12, 0x51da6b3,	0x5bf2153, 0x48b0d48, 0x1d807f0, 0x5edf03e
 };
 
-#define R_RANDOM_H
+#define RAAVANAN_RANDOM_H
 #endif

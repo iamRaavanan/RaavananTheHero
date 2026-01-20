@@ -1,4 +1,4 @@
-#ifndef R_PLATFORM_H
+#ifndef RAAVANAN_PLATFORM_H
 #ifdef __cpluscplus
 extern "C" {
 #endif
@@ -59,7 +59,7 @@ typedef struct thread_context
 	int Placeholder;
 } thread_context;
 
-// #if R_INTERNAL
+// #if RAAVANAN_INTERNAL
 typedef struct debug_read_file_result
 {
 	uint32 ContentSize;
@@ -147,7 +147,7 @@ typedef struct game_memory
 	void *PermanentStorage;
 	uint64 TransientStorageSize;
 	void *TransientStorage;
-// #if R_INTERNAL
+// #if RAAVANAN_INTERNAL
 	debug_read_entire_file *DEBUGReadEntireFile;
 	debug_free_file_memory *DEBUGFreeFileMemory;
 	debug_write_entire_file *DEBUGWriteEntireFile;
@@ -180,5 +180,5 @@ inline game_controller_input *GetController (game_input *input, int ControllerIn
 #ifdef __cpluscplus
 }
 #endif
-#define R_PLATFORM_H
+#define RAAVANAN_PLATFORM_H
 #endif

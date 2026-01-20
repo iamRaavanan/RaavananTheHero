@@ -1,5 +1,5 @@
-#ifndef R_H
-#include "R_Platform.h"
+#ifndef RAAVANAN_H
+#include "Raavanan_Platform.h"
 
 #define Minimum(A, B) ((A < B) ? (A) : (B))
 #define Maximum(A, B) ((A > B) ? (A) : (B))
@@ -22,8 +22,8 @@ void *PushSize_(memory_arena *MemoryArena, size_t Size)
 }
 
 #include <math.h>
-#include "R_math.h"
-#include "R_world.h"
+#include "Raavanan_math.h"
+#include "Raavanan_world.h"
 
 struct loaded_bitmap
 {
@@ -103,7 +103,7 @@ struct game_state
 	loaded_bitmap Backdrop;
 	loaded_bitmap Shadow;
 	hero_bitmaps HeroBitmaps[4];
-#if R_INTERNAL
+#if RAAVANAN_INTERNAL
 	int ToneHz;
 	int XOffset;
 	int YOffset;
@@ -119,5 +119,5 @@ struct game_state
 static void UpdateSound(game_state *GameState, game_sound_buffer *SoundBuffer);
 
 
-#define R_H
+#define RAAVANAN_H
 #endif

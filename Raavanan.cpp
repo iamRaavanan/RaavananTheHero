@@ -1,6 +1,6 @@
-#include "R_intrinsics.h"
-#include "R_random.h"
-#include "R_world.cpp"
+#include "Raavanan_intrinsics.h"
+#include "Raavanan_random.h"
+#include "Raavanan_world.cpp"
 #include <stdio.h>
 #include <windows.h>
 static void UpdateSound(game_state *GameState, game_sound_buffer *SoundBuffer, int ToneHz)
@@ -134,7 +134,7 @@ static void RenderBitMap(game_offscreen_buffer *Buffer, loaded_bitmap *Bitmap, f
 		SrcRow -= Bitmap->Width;
 	}
 }
-//#if R_INTERNAL
+//#if RAAVANAN_INTERNAL
 #pragma pack(push, 1)
 struct bitmap_header
 {
@@ -629,7 +629,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 		bool DoorUp = false;
 		bool DoorDown = false;
 
-		for (uint32 ScreenIndex = 0; ScreenIndex < 2000; ++ScreenIndex)
+		for (uint32 ScreenIndex = 0; ScreenIndex < 2; ++ScreenIndex)
 		{
 			Assert(RandomNumberIndex < ArrayCount(RandomNumberTable));
 			uint32 RandomChoice = (RandomNumberTable[RandomNumberIndex++] % 2/*((DoorUp || DoorDown) ? 2 : 3)*/);
@@ -734,7 +734,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 			}
 			
 		}
-// #if R_INTERNAL
+// #if RAAVANAN_INTERNAL
 		char *Filename = __FILE__;
 		debug_read_file_result File = Memory->DEBUGReadEntireFile(Thread, Filename);
 		if(File.Content)
@@ -742,7 +742,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 			Memory->DEBUGWriteEntireFile(Thread, "test.out", File.ContentSize, File.Content);
 			Memory->DEBUGFreeFileMemory(Thread, File.Content);
 		}
-#if R_INTERNAL
+#if RAAVANAN_INTERNAL
 		GameState->ToneHz = 256;
 		GameState->tSine = 0.0f;
 		GameState->PlayerX = GameState->PlayerY = 100;
@@ -783,7 +783,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 			v2 ddPlayerP = {};
 			if(Controller->IsAnalog)
 			{
-#if R_INTERNAL
+#if RAAVANAN_INTERNAL
 				GameState->ToneHz = 256 + (int)(128.0f * (Controller->StickAverageY));
 				GameState->YOffset += (int)(4.0f * (Controller->StickAverageX));
 #endif

@@ -1,4 +1,4 @@
-#ifndef R_MATH_H
+#ifndef RAAVANAN_MATH_H
 
 // struct 
 // {
@@ -131,5 +131,5 @@ inline bool IsInRectangle (rectangle2 Rect, v2 Test)
                     (Test.X < Rect.Max.X) && (Test.Y < Rect.Max.Y));
     return Result;
 }
-#define R_MATH_H
+#define RAAVANAN_MATH_H
 #endif
