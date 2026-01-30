@@ -1,45 +1,28 @@
 #include "Raavanan.h"
+#include "Raavanan_intrinsics.h"
 #include "Raavanan_world.h"
-
-inline void RecanonicalizeCoord (world *tilemap, int32 *Tile, float *TileRelative)
-{
-	int32 Offset = RoundFloatToInt32(*TileRelative / tilemap->TileSideInMeters);
-	*Tile += Offset;
-	*TileRelative -= Offset * tilemap->TileSideInMeters;
-	Assert (*TileRelative > -0.5f * tilemap->TileSideInMeters);
-	Assert(*TileRelative < 0.5f * tilemap->TileSideInMeters);
-}
-
-inline world_position MapIntoTileSpace (world *tilemap, world_position BasePosition, v2 Offset)
-{
-	world_position Result = BasePosition;
-	Result.Offset += Offset;
-	RecanonicalizeCoord(tilemap, &Result.AbsTileX	, &Result.Offset.X);
-	RecanonicalizeCoord(tilemap, &Result.AbsTileY, &Result.Offset.Y);
-	return Result;
-}
 
 #define TILE_CHUNK_SAFE_MARGIN (INT32_MAX/64)
 #define TILE_CHUNK_UNINITIALIZED INT32_MAX
 
-inline world_chunk *GetTileChunk (world *tilemap, int32 TileChunkX, int32 TileChunkY, int32 TileChunkZ,
+inline world_chunk *GetWorldChunk (world *world, int32 ChunkX, int32 ChunkY, int32 ChunkZ,
 								memory_arena *Arena = 0)
 {
-	Assert(TileChunkX > -TILE_CHUNK_SAFE_MARGIN || (TileChunkX < TILE_CHUNK_SAFE_MARGIN));
-	Assert(TileChunkY > -TILE_CHUNK_SAFE_MARGIN || (TileChunkY < TILE_CHUNK_SAFE_MARGIN));
-	Assert(TileChunkZ > -TILE_CHUNK_SAFE_MARGIN || (TileChunkZ < TILE_CHUNK_SAFE_MARGIN));
+	Assert(ChunkX > -TILE_CHUNK_SAFE_MARGIN || (ChunkX < TILE_CHUNK_SAFE_MARGIN));
+	Assert(ChunkY > -TILE_CHUNK_SAFE_MARGIN || (ChunkY < TILE_CHUNK_SAFE_MARGIN));
+	Assert(ChunkZ > -TILE_CHUNK_SAFE_MARGIN || (ChunkZ < TILE_CHUNK_SAFE_MARGIN));
 	
-	uint32 HashValue = 19 * TileChunkX + 7 * TileChunkY + 3 * TileChunkZ;
-	uint32 HashSlot = HashValue & (ArrayCount(tilemap->TileChunkHash) - 1);
+	uint32 HashValue = 19 * ChunkX + 7 * ChunkY + 3 * ChunkZ;
+	uint32 HashSlot = HashValue & (ArrayCount(world->ChunkHash) - 1);
 	
-	Assert(HashSlot < ArrayCount(tilemap->TileChunkHash));
+	Assert(HashSlot < ArrayCount(world->ChunkHash));
 
-	world_chunk *Chunk = tilemap->TileChunkHash + HashSlot;
+	world_chunk *Chunk = world->ChunkHash + HashSlot;
 	do
 	{
-		if ((TileChunkX == Chunk->ChunkX) &&
-			(TileChunkY == Chunk->ChunkY) &&
-			(TileChunkZ == Chunk->ChunkZ))
+		if ((ChunkX == Chunk->ChunkX) &&
+			(ChunkY == Chunk->ChunkY) &&
+			(ChunkZ == Chunk->ChunkZ))
 		{
 			break;
 		}
@@ -51,10 +34,10 @@ inline world_chunk *GetTileChunk (world *tilemap, int32 TileChunkX, int32 TileCh
 		}
 		if (Arena && (Chunk->ChunkX == TILE_CHUNK_UNINITIALIZED))
 		{
-			uint32 TileCount = tilemap->WorldChunkDim * tilemap->WorldChunkDim;
-			Chunk->ChunkX = TileChunkX;
-			Chunk->ChunkY = TileChunkY;
-			Chunk->ChunkZ = TileChunkZ;
+			uint32 TileCount = world->ChunkDim * world->ChunkDim;
+			Chunk->ChunkX = ChunkX;
+			Chunk->ChunkY = ChunkY;
+			Chunk->ChunkZ = ChunkZ;
 			
 			Chunk->NextInHash = 0;
 			break;
@@ -65,17 +48,35 @@ inline world_chunk *GetTileChunk (world *tilemap, int32 TileChunkX, int32 TileCh
 }
 
 #if 0
-inline world_chunk_position GetChunkPositionFor(world *tilemap, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ)
+inline world_chunk_position GetChunkPositionFor(world *world, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ)
 {
 	world_chunk_position Result;
-	Result.TileChunkX = AbsTileX >> tilemap->WorldChunkShift;
-	Result.TileChunkY = AbsTileY >> tilemap->WorldChunkShift;
-	Result.TileChunkZ = AbsTileZ;
-	Result.RelTileX = AbsTileX & tilemap->WorldChunkMask;
-	Result.RelTileY = AbsTileY & tilemap->WorldChunkMask;
+	Result.WorldChunkX = AbsTileX >> world->ChunkShift;
+	Result.WorldChunkY = AbsTileY >> world->ChunkShift;
+	Result.WorldChunkZ = AbsTileZ;
+	Result.RelTileX = AbsTileX & world->ChunkMask;
+	Result.RelTileY = AbsTileY & world->ChunkMask;
 	return Result;
 }
 #endif
+
+inline void RecanonicalizeCoord (world *world, int32 *Tile, float *TileRelative)
+{
+	int32 Offset = RoundFloatToInt32(*TileRelative / world->TileSideInMeters);
+	*Tile += Offset;
+	*TileRelative -= Offset * world->TileSideInMeters;
+	Assert (*TileRelative > -0.5f * world->TileSideInMeters);
+	Assert(*TileRelative < 0.5f * world->TileSideInMeters);
+}
+
+inline world_position MapIntoTileSpace (world *world, world_position BasePosition, v2 Offset)
+{
+	world_position Result = BasePosition;
+	Result.Offset += Offset;
+	RecanonicalizeCoord(world, &Result.AbsTileX	, &Result.Offset.X);
+	RecanonicalizeCoord(world, &Result.AbsTileY, &Result.Offset.Y);
+	return Result;
+}
 
 inline bool AreOnSameTile(world_position *A, world_position *B)
 {
@@ -83,14 +84,14 @@ inline bool AreOnSameTile(world_position *A, world_position *B)
 	return Result;
 }
 
-inline world_difference Subtract (world *TileMap, world_position *A, world_position *B)
+inline world_difference Subtract (world *world, world_position *A, world_position *B)
 {
 	world_difference Result = {};
 	v2 dTile = {(float)A->AbsTileX - (float)B->AbsTileX, (float)A->AbsTileY - (float)B->AbsTileY};
 	float dTileZ = (float)A->AbsTileZ - (float)B->AbsTileZ;
 
-	Result.dXY = TileMap->TileSideInMeters * dTile + A->Offset - B->Offset;
-	Result.dZ = TileMap->TileSideInMeters * dTileZ +  0.0f;
+	Result.dXY = world->TileSideInMeters * dTile + A->Offset - B->Offset;
+	Result.dZ = world->TileSideInMeters * dTileZ +  0.0f;
 	return Result;
 }
 
@@ -103,14 +104,14 @@ inline world_position CenteredTilePoint (uint32 AbsTileX, uint32 AbsTileY,uint32
 	return Result;
 }
 
-static void InitializeTileMap (world *TileMap, float TileSideInMeteres)
+static void Initializeworld (world *world, float TileSideInMeteres)
 {
-	TileMap->WorldChunkShift = 4;
-	TileMap->WorldChunkMask = (1 << TileMap->WorldChunkShift) - 1;	// which is equal to assigning 0xFF
-	TileMap->WorldChunkDim = (1 << TileMap->WorldChunkShift);	// Which is equal to 256
-	TileMap->TileSideInMeters = TileSideInMeteres;
-	for (uint32 TileChunkIndex = 0; TileChunkIndex < ArrayCount(TileMap->TileChunkHash); ++TileChunkIndex)
+	world->ChunkShift = 4;
+	world->ChunkMask = (1 << world->ChunkShift) - 1;	// which is equal to assigning 0xFF
+	world->ChunkDim = (1 << world->ChunkShift);	// Which is equal to 256
+	world->TileSideInMeters = TileSideInMeteres;
+	for (uint32 ChunkIndex = 0; ChunkIndex < ArrayCount(world->ChunkHash); ++ChunkIndex)
 	{
-		TileMap->TileChunkHash[TileChunkIndex].ChunkX = TILE_CHUNK_UNINITIALIZED;
+		world->ChunkHash[ChunkIndex].ChunkX = TILE_CHUNK_UNINITIALIZED;
 	}
 }
