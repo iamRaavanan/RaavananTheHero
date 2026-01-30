@@ -8,22 +8,14 @@ struct world_difference
 
 struct world_position
 {
+	// Puzzler! How can we get rid of AbsTile* here, and still allow references to entities to be able to figure
+	// out where they are( or rather, which worldchunk they are in ?)
 	// Note: Fixexd tile position.  High bits for Tile chunk index, Low bits for Tile index in the chunk
 	int32 AbsTileX;
 	int32 AbsTileY;
 	int32 AbsTileZ;
 	// Tile relative X & Y
 	v2 Offset;
-};
-
-struct world_chunk_position
-{
-	int32 TileChunkX;
-	int32 TileChunkY;
-	int32 TileChunkZ;
-
-	int32 RelTileX;
-	int32 RelTileY;
 };
 
 struct world_entity_block
@@ -47,11 +39,11 @@ struct world_chunk
 struct world
 {
 	float TileSideInMeters;
-	int32 WorldChunkShift;
-	int32 WorldChunkMask;
-	int32 WorldChunkDim;
+	int32 ChunkShift;
+	int32 ChunkMask;
+	int32 ChunkDim;
 	
-	world_chunk TileChunkHash[4096];
+	world_chunk ChunkHash[4096];
 };
 #define RAAVANAN_WORLD_H
 #endif
