@@ -246,12 +246,6 @@ static loaded_bitmap DEBUGLoadBMP (thread_context *Thread, debug_read_entire_fil
 	return Result;
 }
 //#endif
-static void InitializeArena (memory_arena *MemoryArena, size_t Size, uint8 *BasePtr)
-{
-	MemoryArena->Size = Size;
-	MemoryArena->Base = BasePtr;
-	MemoryArena->UsedSpace = 0;
-}
 
 static high_entity* MakeEntityHighFrequency (game_state* GameState, uint32 LowIndex)
 {
@@ -424,21 +418,6 @@ static void MovePlayer (game_state* GameState, entity Entity, float deltaTime, v
 	v2 PlayerDelta = 0.5f * ddPlayer * Square(deltaTime) + Entity.High->dPlayerP * deltaTime;
 	Entity.High->dPlayerP = ddPlayer * deltaTime + Entity.High->dPlayerP;
 	v2 NewPlayerP = OldPlayerP + PlayerDelta;
-	
-	// uint32 MintileX = Minimum(OldPlayerP.AbsTileX, NewPlayerP.AbsTileX);
-	// uint32 MintileY = Minimum(OldPlayerP.AbsTileY, NewPlayerP.AbsTileY);
-	// uint32 MaxTileX = Maximum(OldPlayerP.AbsTileX, NewPlayerP.AbsTileX);
-	// uint32 MaxTileY = Maximum(OldPlayerP.AbsTileY, NewPlayerP.AbsTileY);
-
-	// int32 EntityTileWidth = CeilFloatToInt32(Entity->Width / World->TileSideInMeters);
-	// int32 EntityTileHeight = CeilFloatToInt32(Entity->Height / World->TileSideInMeters);
-
-	// MintileX -= EntityTileWidth;
-	// MintileY -= EntityTileHeight;
-	// MaxTileX += EntityTileWidth;
-	// MaxTileY += EntityTileHeight;
-
-	// uint32 AbsTileZ = Entity.High->Pos.AbsTileZ;	
 
 	for (uint32 Iteration = 0; (Iteration < 4); ++Iteration)
 	{
@@ -606,7 +585,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 		Bitmap->AlignY = 182;
 		
 
-		InitializeArena (&GameState->WorldArena, (size_t)Memory->PermanentStorageSize - sizeof(game_state), (uint8 *)Memory->PermanentStorage + sizeof(game_state));
+		InitializeArena (&GameState->WorldArena, Memory->PermanentStorageSize - sizeof(game_state), (uint8 *)Memory->PermanentStorage + sizeof(game_state));
 		GameState->World = PushStruct(&GameState->WorldArena, world);
 		world *World = GameState->World;
 		

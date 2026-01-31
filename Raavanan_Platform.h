@@ -36,6 +36,12 @@ typedef uint16_t uint16;
 typedef uint32_t uint32;
 typedef uint64_t uint64;
 
+typedef size_t memory_index;
+
+#define internal static
+#define local_persist static
+#define global_variable static
+
 #define PI 3.14159265359
 
 #define Assert(Expression) if(!(Expression)) { *(int *) 0 = 0;}

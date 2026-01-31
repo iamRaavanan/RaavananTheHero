@@ -11,6 +11,14 @@ struct memory_arena
 	size_t UsedSpace;
 };
 
+internal void InitializeArena (memory_arena *MemoryArena, memory_index Size, uint8 *BasePtr)
+{
+	MemoryArena->Size = Size;
+	MemoryArena->Base = BasePtr;
+	MemoryArena->UsedSpace = 0;
+}
+
+
 #define PushStruct(MemoryArena, type) (type *)PushSize_(MemoryArena, sizeof(type))
 #define PushArray(MemoryArena, Count, type) (type *)PushSize_(MemoryArena, (Count * sizeof(type)))
 void *PushSize_(memory_arena *MemoryArena, size_t Size)
@@ -77,12 +85,6 @@ struct entity
 	uint32 LowIndex;
 	low_entity* Low;
 	high_entity* High;
-};
-
-struct low_entity_chunk_reference
-{
-	world_chunk *TileChunk;
-	uint32 EntityIndexInChunk;
 };
 
 struct game_state
