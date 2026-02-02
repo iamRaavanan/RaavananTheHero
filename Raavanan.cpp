@@ -538,7 +538,7 @@ static void SetCamera (game_state* GameState, world_position NewCameraP)
 				(Low->Pos.AbsTileX >= MinTileX) &&
 				(Low->Pos.AbsTileX <= MaxTileX) &&
 				(Low->Pos.AbsTileY >= MinTileY) &&
-				(Low->Pos.AbsTileY <= MinTileY))
+				(Low->Pos.AbsTileY <= MaxTileY))
 			{
 				MakeEntityHighFrequency (GameState, EntityIndex);
 			}
