@@ -1,9 +1,7 @@
-#include "Raavanan_intrinsics.h"
+
 #include "Raavanan_random.h"
 #include "Raavanan_world.cpp"
-#include <stdio.h>
-#include <windows.h>
-static void UpdateSound(game_state *GameState, game_sound_buffer *SoundBuffer, int ToneHz)
+internal void UpdateSound(game_state *GameState, game_sound_buffer *SoundBuffer, int ToneHz)
 {
 	int16 ToneVolume = 3000;
 	int WavePeriod = SoundBuffer->SamplesPerSecond/ToneHz;
@@ -29,7 +27,7 @@ static void UpdateSound(game_state *GameState, game_sound_buffer *SoundBuffer, i
 	}
 }
 
-static void RenderGradiant(game_offscreen_buffer *Buffer, int xOffset, int yOffset)
+internal void RenderGradiant(game_offscreen_buffer *Buffer, int xOffset, int yOffset)
 {	
 	uint8 *Row = (uint8 *)Buffer->Memory;
 	for (int y = 0; y < Buffer->Height; ++y) {
@@ -50,7 +48,7 @@ static void RenderGradiant(game_offscreen_buffer *Buffer, int xOffset, int yOffs
 	}
 }
 
-static void RenderRectangle(game_offscreen_buffer *Buffer, v2 vMin, v2 vMax, float R, float G, float B)
+internal void RenderRectangle(game_offscreen_buffer *Buffer, v2 vMin, v2 vMax, float R, float G, float B)
 {
 	int32 MinX = RoundFloatToInt32(vMin.X);
 	int32 MinY = RoundFloatToInt32(vMin.Y);
@@ -76,7 +74,7 @@ static void RenderRectangle(game_offscreen_buffer *Buffer, v2 vMin, v2 vMax, flo
 	}
 }
 
-static void RenderBitMap(game_offscreen_buffer *Buffer, loaded_bitmap *Bitmap, float realX, float realY, int32 AlignX = 0, int32 AlignY = 0, float CAlpha = 1.0f)
+internal void RenderBitMap(game_offscreen_buffer *Buffer, loaded_bitmap *Bitmap, float realX, float realY, int32 AlignX = 0, int32 AlignY = 0, float CAlpha = 1.0f)
 {
 	realX -= AlignX;
 	realY -= AlignY;
@@ -161,7 +159,7 @@ struct bitmap_header
 };
 #pragma pack(pop)
 
-static loaded_bitmap DEBUGLoadBMP (thread_context *Thread, debug_read_entire_file *ReadEntireFile, char *FileName)
+internal loaded_bitmap DEBUGLoadBMP (thread_context *Thread, debug_read_entire_file *ReadEntireFile, char *FileName)
 {
 	loaded_bitmap Result = {};
 	debug_read_file_result FileResult = ReadEntireFile (Thread, FileName);
@@ -174,80 +172,49 @@ static loaded_bitmap DEBUGLoadBMP (thread_context *Thread, debug_read_entire_fil
 		Result.Height = Header->Height;
 
 		Assert(Header->Compression == 3);
-		uint32 RedMask = Header->RedMask;
-		uint32 GreenMask = Header->GreenMask;
-		uint32 BlueMask = Header->BlueMask;
-		uint32 AlphaMask = ~(RedMask | GreenMask | BlueMask);
-#if 1
-		bit_scan_result RedShift = FindLSBSetBit(RedMask);
-		bit_scan_result GreenShift = FindLSBSetBit(GreenMask);
-		bit_scan_result BlueShift = FindLSBSetBit(BlueMask);
-		bit_scan_result AlphaShift = FindLSBSetBit(AlphaMask);
+uint32 RedMask = Header->RedMask;
+        uint32 GreenMask = Header->GreenMask;
+        uint32 BlueMask = Header->BlueMask;
+        uint32 AlphaMask = ~(RedMask | GreenMask | BlueMask);        
+        
+        bit_scan_result RedScan = FindLSBSetBit(RedMask);
+        bit_scan_result GreenScan = FindLSBSetBit(GreenMask);
+        bit_scan_result BlueScan = FindLSBSetBit(BlueMask);
+        bit_scan_result AlphaScan = FindLSBSetBit(AlphaMask);
+        
+        Assert(RedScan.Found);
+        Assert(GreenScan.Found);
+        Assert(BlueScan.Found);
+        Assert(AlphaScan.Found);
 
-		Assert(RedShift.Found);
-		Assert(GreenShift.Found);
-		Assert(BlueShift.Found);
-		Assert(AlphaShift.Found);
-		
-		uint32 *SrcDst = Pixels;
-		for (int32 Y = 0; Y < Header->Height; ++Y)
-		{
-			for (int32 X = 0; X < Header->Width; ++X)
-			{
-				uint32 C = *SrcDst;
-				*SrcDst++ = ((((C >> AlphaShift.Index) & 0xFF) << 24) |
-							 (((C >> RedShift.Index) & 0xFF) << 16) |
-							 (((C >> GreenShift.Index) & 0xFF) << 8) |
-							 (((C >> BlueShift.Index) & 0xFF) << 0));
-				// uint8 C0 = SrcDst[0];	// Alpha
-				// uint8 C1 = SrcDst[1];	// Blue	
-				// uint8 C2 = SrcDst[2];	// Green	
-				// uint8 C3 = SrcDst[3];	// Red	
-				// *(uint32 *)SrcDst = (C0 << 24) | (C3 << 16) | (C2 << 8) | (C1 << 0);
-				// SrcDst +=
-			}
-		}
-#else
-		bit_scan_result RedScan = FindLSBSetBit(RedMask);
-		bit_scan_result GreenScan = FindLSBSetBit(GreenMask);
-		bit_scan_result BlueScan = FindLSBSetBit(BlueMask);
-		bit_scan_result AlphaScan = FindLSBSetBit(AlphaMask);
+        int32 RedShift = 16 - (int32)RedScan.Index;
+        int32 GreenShift = 8 - (int32)GreenScan.Index;
+        int32 BlueShift = 0 - (int32)BlueScan.Index;
+        int32 AlphaShift = 24 - (int32)AlphaScan.Index;
+        
+        uint32 *SourceDest = Pixels;
+        for(int32 Y = 0;
+            Y < Header->Height;
+            ++Y)
+        {
+            for(int32 X = 0;
+                X < Header->Width;
+                ++X)
+            {
+                uint32 C = *SourceDest;
 
-		Assert(RedScan.Found);
-		Assert(GreenScan.Found);
-		Assert(BlueScan.Found);
-		Assert(AlphaScan.Found);
-		
-		int32 RedShift = 16 - (int32)RedScan.Index;
-		int32 GreenShift = 8 - (int32)GreenScan.Index;
-		int32 BlueShift = 0 - (int32)BlueScan.Index;
-		int32 AlphaShift = 16 - (int32)AlphaScan.Index;
-		
-		uint32 *SrcDst = Pixels;
-		for (int32 Y = 0; Y < Header->Height; ++Y)
-		{
-			for (int32 X = 0; X < Header->Width; ++X)
-			{
-				uint32 C = *SrcDst;
-				*SrcDst++ = (RotateLeft(C & RedMask, RedShift) |
-							RotateLeft(C & GreenMask, GreenShift) |
-							RotateLeft(C & BlueMask, BlueShift) |
-							RotateLeft(C & AlphaMask, AlphaShift));
-				// uint8 C0 = SrcDst[0];	// Alpha
-				// uint8 C1 = SrcDst[1];	// Blue	
-				// uint8 C2 = SrcDst[2];	// Green	
-				// uint8 C3 = SrcDst[3];	// Red	
-				// *(uint32 *)SrcDst = (C0 << 24) | (C3 << 16) | (C2 << 8) | (C1 << 0);
-				// SrcDst +=
-			}
-		}
-#endif
+                *SourceDest++ = (RotateLeft(C & RedMask, RedShift) |
+                                 RotateLeft(C & GreenMask, GreenShift) |
+                                 RotateLeft(C & BlueMask, BlueShift) |
+                                 RotateLeft(C & AlphaMask, AlphaShift));
+            }
+        }
 	}
 	return Result;
 }
 //#endif
 
-static high_entity* MakeEntityHighFrequency (game_state* GameState, uint32 LowIndex)
+internal high_entity* MakeEntityHighFrequency (game_state* GameState, uint32 LowIndex)
 {
 	high_entity* EntityHigh = 0;
 	low_entity* EntityLow = &GameState->LowEntities[LowIndex];
@@ -291,7 +258,7 @@ inline entity GetHighEntity(game_state* GameState, uint32 Index)
 	return Result;
 }
 
-static void MakeEntityLowFrequency (game_state* GameState, uint32 LowIndex)
+internal void MakeEntityLowFrequency (game_state* GameState, uint32 LowIndex)
 {
 	low_entity* EntityLow = &GameState->LowEntities[LowIndex];
 	uint32 HighIndex = EntityLow->HighEntityIndex;
@@ -320,7 +287,7 @@ inline low_entity* GetLowEntity(game_state* GameState, uint32 Index)
 	return Result;
 }
 
-static void OffsetAndCheckFrequencyByArea(game_state* GameState, v2 Offset, rectangle2 HighFreqBounds)
+internal void OffsetAndCheckFrequencyByArea(game_state* GameState, v2 Offset, rectangle2 HighFreqBounds)
 {
 	for (uint32 EntityIndex = 1; EntityIndex < GameState->HighEntityCount; )
 	{
@@ -332,12 +299,12 @@ static void OffsetAndCheckFrequencyByArea(game_state* GameState, v2 Offset, rect
 		}
 		else
 		{
-			MakeEntityLowFrequency(GameState, EntityIndex);
+			MakeEntityLowFrequency(GameState, High->LowEntityIndex);
 		}
 	}
 }
 
-static uint32 AddLowEntity(game_state* GameState, entity_type Type)
+internal uint32 AddLowEntity(game_state* GameState, entity_type Type)
 {
 	Assert (GameState->LowEntityCount < ArrayCount(GameState->LowEntities));
 	uint32 EntityIndex = GameState->LowEntityCount++;
@@ -347,7 +314,7 @@ static uint32 AddLowEntity(game_state* GameState, entity_type Type)
 	return EntityIndex;
 }
 
-static uint32 AddPlayer (game_state* GameState)
+internal uint32 AddPlayer (game_state* GameState)
 {
 	uint32 EntityIndex = AddLowEntity(GameState, EntityType_Hero);
 	low_entity* EntityLow = GetLowEntity(GameState, EntityIndex);
@@ -365,7 +332,7 @@ static uint32 AddPlayer (game_state* GameState)
 	return EntityIndex;
 }
 
-static uint32 AddWall (game_state* GameState, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ)
+internal uint32 AddWall (game_state* GameState, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ)
 {
 	uint32 EntityIndex = AddLowEntity (GameState, EntityType_Wall);
 	low_entity* EntityLow = GetLowEntity(GameState, EntityIndex);
@@ -379,7 +346,7 @@ static uint32 AddWall (game_state* GameState, uint32 AbsTileX, uint32 AbsTileY, 
 	return EntityIndex;
 }
 
-static bool TestWall (float WallX, float RelX, float RelY, float PlayerDeltaX, float PlayerDeltaY,
+internal bool TestWall (float WallX, float RelX, float RelY, float PlayerDeltaX, float PlayerDeltaY,
 						float *tMin, float MinY, float MaxY)
 {
 	bool Hit = false;
@@ -399,7 +366,7 @@ static bool TestWall (float WallX, float RelX, float RelY, float PlayerDeltaX, f
 	}
 	return Hit;
 }
-static void MovePlayer (game_state* GameState, entity Entity, float deltaTime, v2 ddPlayer)
+internal void MovePlayer (game_state* GameState, entity Entity, float deltaTime, v2 ddPlayer)
 {
 	world* World = GameState->World;
 
@@ -514,7 +481,7 @@ static void MovePlayer (game_state* GameState, entity Entity, float deltaTime, v
 	Entity.Low->Pos = MapIntoTileSpace (GameState->World, GameState->CameraP, Entity.High->Pos);
 }
 
-static void SetCamera (game_state* GameState, world_position NewCameraP)
+internal void SetCamera (game_state* GameState, world_position NewCameraP)
 {
 	world* World = GameState->World;
 	world_difference dCameraP = Subtract (World, &NewCameraP, &GameState->CameraP);
@@ -549,6 +516,7 @@ static void SetCamera (game_state* GameState, world_position NewCameraP)
 
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
+	Assert((&Input->Controllers[0].Terminator - &Input->Controllers[0].Buttons[0]) == ArrayCount(Input->Controllers[0].Buttons));
 	Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
 	game_state *GameState = (game_state *)Memory->PermanentStorage;
 

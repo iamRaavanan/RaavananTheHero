@@ -1,39 +1,17 @@
 
 #include "Raavanan_Platform.h"
-#include "win32_Raavananthehero.h"
+#include <windows.h>
+#include <stdio.h>
 #include <xinput.h>
 #include <dsound.h>
-#include <stdio.h>
+#include "win32_Raavananthehero.h"
 
+global_variable win32_offscreen_buffer  backBuffer;
+global_variable bool bIsRunning;
+global_variable bool bIsPaused;
+global_variable bool DEBUGGlobalShowCursor;
 static WINDOWPLACEMENT GlobalWindowPos = { sizeof(GlobalWindowPos) };
-static void ToggleFullscreen(HWND hwnd)
-{
-	// Reymond Chen's work for Toggle between normal and fullscreen
-  DWORD dwStyle = GetWindowLong(hwnd, GWL_STYLE);
-  if (dwStyle & WS_OVERLAPPEDWINDOW) {
-    MONITORINFO mi = { sizeof(mi) };
-    if (GetWindowPlacement(hwnd, &GlobalWindowPos) &&
-        GetMonitorInfo(MonitorFromWindow(hwnd,
-                       MONITOR_DEFAULTTOPRIMARY), &mi)) {
-      SetWindowLong(hwnd, GWL_STYLE,
-                    dwStyle & ~WS_OVERLAPPEDWINDOW);
-      SetWindowPos(hwnd, HWND_TOP,
-                   mi.rcMonitor.left, mi.rcMonitor.top,
-                   mi.rcMonitor.right - mi.rcMonitor.left,
-                   mi.rcMonitor.bottom - mi.rcMonitor.top,
-                   SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
-    }
-  } else {
-    SetWindowLong(hwnd, GWL_STYLE,
-                  dwStyle | WS_OVERLAPPEDWINDOW);
-    SetWindowPlacement(hwnd, &GlobalWindowPos);
-    SetWindowPos(hwnd, NULL, 0, 0, 0, 0,
-                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
-                 SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
-  }
-}
 
-#pragma region X_INPUT
 // XInputGetState
 #define X_INPUT_GET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_STATE *pState)
 typedef X_INPUT_GET_STATE(X_InputGetState);
@@ -54,14 +32,123 @@ X_INPUT_SET_STATE(XInputSetStateStub)
 static X_InputSetState *XInputSetState_ = XInputSetStateStub;
 #define XInputSetState XInputSetState_;
 
-struct Win32_game_code
+
+static LPDIRECTSOUNDBUFFER GlobalSecondaryBuffer;
+#define DIRECT_SOUND_CREATE(name) HRESULT WINAPI name(LPCGUID lpGUID,LPDIRECTSOUND *ppDS,LPUNKNOWN pUnkOuter)
+typedef DIRECT_SOUND_CREATE(direct_sound_create);
+
+static void CatStrings(int64 SrcALen, char *SrcA, int SrcBLen, char *SrcB, size_t DstLen, char *Dst)
 {
-	bool bIsValid;
-	HMODULE GameCodeDLL;
-	FILETIME DllLastWriteTime;
-	game_update_and_Render *UpdateAndRender;
-	get_game_sound_samples *GetSoundSamples;
-};
+	for(int i = 0; i < SrcALen; i++)
+	{
+		*Dst++ = *SrcA++;
+	}
+	for(int i = 0; i < SrcBLen; i++)
+	{
+		*Dst++ = *SrcB++;
+	}
+	*Dst++ = 0;
+}
+
+internal void Win32GetEXEFileName(Win32_RecordingState *State)
+{
+	DWORD SizeOfFileName = GetModuleFileNameA(0, State->ExeFileName, sizeof(State->ExeFileName));
+	State->OnePastLastExeFileNameSlash = State->ExeFileName;
+	for(char *Scan = State->ExeFileName; *Scan; ++Scan)
+	{
+		if(*Scan == '\\')
+		{
+			State->OnePastLastExeFileNameSlash = Scan + 1;
+		}
+	}
+}
+
+internal int StringLength (char *str)
+{
+	int count = 0;
+	while(*str++)
+	{
+		++count;
+	}
+	return count;
+}
+
+static void Win32MakeEXEPathFileName(Win32_RecordingState *State, char *FileName, int DstCount, char *Dst)
+{
+	CatStrings(State->OnePastLastExeFileNameSlash - State->ExeFileName, State->ExeFileName, StringLength(FileName), FileName, DstCount, Dst);
+}
+
+DEBUG_FREE_FILE_MEMORY (DEBUGFreeFileMemory)
+{
+	if(Memory)
+	{
+		VirtualFree(Memory, 0, MEM_RELEASE);
+	}
+}
+
+// #if RAAVANAN_INTERNAL
+
+DEBUG_READ_ENTIRE_FILE(DEBUGReadEntireFile)
+{
+	debug_read_file_result Result = {};
+	HANDLE FileHandle = CreateFileA(Filename, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+	if(FileHandle != INVALID_HANDLE_VALUE)
+	{
+		LARGE_INTEGER FileSize;
+		if(GetFileSizeEx(FileHandle, &FileSize))
+		{
+			uint32 FileSize32 = SafeTruncateUInt64 (FileSize.QuadPart);
+			Result.Content = VirtualAlloc(0, FileSize32, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+			if(Result.Content)
+			{
+				DWORD BytesRead;
+				if(ReadFile(FileHandle, Result.Content, FileSize32, &BytesRead, 0) && (FileSize32 == BytesRead))
+				{
+					// Successfully read the file.
+					Result.ContentSize = FileSize32;
+				}
+				else
+				{
+					DEBUGFreeFileMemory(Thread, Result.Content);
+					Result.Content = 0;
+				}
+			}
+			else
+			{
+
+			}
+		}
+		CloseHandle(FileHandle);
+	}
+	return Result;
+}
+
+DEBUG_WRITE_ENTIRE_FILE (DEBUGWriteEntireFile)
+{
+	bool Result = false;
+	HANDLE FileHandle = CreateFileA(Filename, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
+	if(FileHandle != INVALID_HANDLE_VALUE)
+	{
+		LARGE_INTEGER FileSize;
+		if(GetFileSizeEx(FileHandle, &FileSize))
+		{
+			DWORD BytesWrite;
+			if(WriteFile(FileHandle, Memory, Memorysize, &BytesWrite, 0))
+			{
+				Result = (BytesWrite == Memorysize);
+			}
+			else
+			{
+				Result = false;
+			}
+		}
+		CloseHandle(FileHandle);
+	}
+	return Result;
+}
+// #endif
+
+#pragma region X_INPUT
 
 inline FILETIME Win32GetLastWriteTime(char *Filename)
 {
@@ -144,121 +231,7 @@ static void Win32LoadXInput(void)
 #pragma endregion X_INPUT
 
 #pragma region DIRECT_SOUND
-static LPDIRECTSOUNDBUFFER GlobalSecondaryBuffer;
-#define DIRECT_SOUND_CREATE(name) HRESULT WINAPI name(LPCGUID lpGUID,LPDIRECTSOUND *ppDS,LPUNKNOWN pUnkOuter)
-typedef DIRECT_SOUND_CREATE(direct_sound_create);
-
-static void Win32GetEXEFileName(Win32_RecordingState *State)
-{
-	DWORD SizeOfFileName = GetModuleFileNameA(0, State->ExeFileName, sizeof(State->ExeFileName));
-	State->OnePastLastExeFileNameSlash = State->ExeFileName;
-	for(char *Scan = State->ExeFileName; *Scan; ++Scan)
-	{
-		if(*Scan == '\\')
-		{
-			State->OnePastLastExeFileNameSlash = Scan + 1;
-		}
-	}
-}
-
-static int StringLength (char *str)
-{
-	int count = 0;
-	while(*str++)
-	{
-		++count;
-	}
-	return count;
-}
-
-static void CatStrings(int64 SrcALen, char *SrcA, int SrcBLen, char *SrcB, size_t DstLen, char *Dst)
-{
-	for(int i = 0; i < SrcALen; i++)
-	{
-		*Dst++ = *SrcA++;
-	}
-	for(int i = 0; i < SrcBLen; i++)
-	{
-		*Dst++ = *SrcB++;
-	}
-	*Dst++ = 0;
-}
-
-static void Win32MakeEXEPathFileName(Win32_RecordingState *State, char *FileName, int DstCount, char *Dst)
-{
-	CatStrings(State->OnePastLastExeFileNameSlash - State->ExeFileName, State->ExeFileName, StringLength(FileName), FileName, DstCount, Dst);
-}
-
-// #if RAAVANAN_INTERNAL
-DEBUG_FREE_FILE_MEMORY (DEBUGFreeFileMemory)
-{
-	if(Memory)
-	{
-		VirtualFree(Memory, 0, MEM_RELEASE);
-	}
-}
-
-DEBUG_READ_ENTIRE_FILE(DEBUGReadEntireFile)
-{
-	debug_read_file_result Result = {};
-	HANDLE FileHandle = CreateFileA(Filename, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
-	if(FileHandle != INVALID_HANDLE_VALUE)
-	{
-		LARGE_INTEGER FileSize;
-		if(GetFileSizeEx(FileHandle, &FileSize))
-		{
-			uint32 FileSize32 = SafeTruncateUInt64 (FileSize.QuadPart);
-			Result.Content = VirtualAlloc(0, FileSize32, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
-			if(Result.Content)
-			{
-				DWORD BytesRead;
-				if(ReadFile(FileHandle, Result.Content, FileSize32, &BytesRead, 0) && (FileSize32 == BytesRead))
-				{
-					// Successfully read the file.
-					Result.ContentSize = FileSize32;
-				}
-				else
-				{
-					DEBUGFreeFileMemory(Thread, Result.Content);
-					Result.Content = 0;
-				}
-			}
-			else
-			{
-
-			}
-		}
-		CloseHandle(FileHandle);
-	}
-	return Result;
-}
-
-DEBUG_WRITE_ENTIRE_FILE (DEBUGWriteEntireFile)
-{
-	bool Result = false;
-	HANDLE FileHandle = CreateFileA(Filename, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
-	if(FileHandle != INVALID_HANDLE_VALUE)
-	{
-		LARGE_INTEGER FileSize;
-		if(GetFileSizeEx(FileHandle, &FileSize))
-		{
-			DWORD BytesWrite;
-			if(WriteFile(FileHandle, Memory, Memorysize, &BytesWrite, 0))
-			{
-				Result = (BytesWrite == Memorysize);
-			}
-			else
-			{
-				Result = false;
-			}
-		}
-		CloseHandle(FileHandle);
-	}
-	return Result;
-}
-// #endif
-
-static void Win32InitDirectSound (HWND Window, int32 SamplesPerSecond, int32 BufferSize)
+internal void Win32InitDirectSound (HWND Window, int32 SamplesPerSecond, int32 BufferSize)
 {
 	HMODULE DSound = LoadLibraryA("dsound.dll");
 	if(DSound)
@@ -315,12 +288,7 @@ static void Win32InitDirectSound (HWND Window, int32 SamplesPerSecond, int32 Buf
 }
 #pragma endregion DIRECT_SOUND
 
-win32_offscreen_buffer  backBuffer;
-bool bIsRunning;
-bool bIsPaused;
-HCURSOR DEBUGGlobalCursor;
-
-win32_window_dimension GetWindowDimension (HWND hwnd)
+internal win32_window_dimension GetWindowDimension (HWND hwnd)
 {
 	win32_window_dimension Result;
 	RECT clientRect;
@@ -386,7 +354,7 @@ void Win32UpdateBufferInWindow (win32_offscreen_buffer *Buffer, HDC DeviceContex
 	
 }
 
-static LRESULT CALLBACK Win32Wndproc (HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+internal LRESULT CALLBACK Win32Wndproc (HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	LRESULT Result = 0;
 	switch (uMsg)
@@ -398,20 +366,30 @@ static LRESULT CALLBACK Win32Wndproc (HWND hwnd, UINT uMsg, WPARAM wParam, LPARA
 		} break;
 		case WM_SETCURSOR:
 		{
-			SetCursor (DEBUGGlobalCursor);
+			if(DEBUGGlobalShowCursor)
+            {
+                Result = DefWindowProcA(hwnd, uMsg, wParam, lParam);
+            }
+            else
+            {
+                SetCursor(0);
+            }
 		} break;
 		case WM_DESTROY:
 		{
+			bIsRunning = false;
 			PostQuitMessage(0);
 			OutputDebugStringA("WM_DESTROY\n");
 		} break;
 		case WM_CLOSE:
 		{
+			bIsRunning = false;
 			PostQuitMessage(0);
 			OutputDebugStringA("WM_CLOSE\n");
 		} break;
 		case WM_ACTIVATEAPP:
 		{
+#if 0
 			if(wParam == TRUE)
 			{
 				SetLayeredWindowAttributes(hwnd, RGB(0,0,0), 255, LWA_ALPHA);
@@ -421,6 +399,7 @@ static LRESULT CALLBACK Win32Wndproc (HWND hwnd, UINT uMsg, WPARAM wParam, LPARA
 				SetLayeredWindowAttributes(hwnd, RGB(0,0,0), 64, LWA_ALPHA);
 			}
 			OutputDebugStringA("WM_ACTIVATEAPP\n");
+#endif
 		} break;
 		case WM_SYSKEYDOWN:
 		case WM_SYSKEYUP:
@@ -445,7 +424,7 @@ static LRESULT CALLBACK Win32Wndproc (HWND hwnd, UINT uMsg, WPARAM wParam, LPARA
 	return Result;
 }
 
-static void Win32ClearBuffer (Win32_Sound_Output *SoundOutput)
+internal void Win32ClearBuffer (Win32_Sound_Output *SoundOutput)
 {
 	void *Region1;
 	DWORD Region1Size;
@@ -503,6 +482,33 @@ static void Win32ProcessKeyboardMessage (game_button_state *KeyboardState, bool 
 		KeyboardState->EndedDown = IsDown;
 		++KeyboardState->HalfTransitionCount;
 	}
+}
+
+static void ToggleFullscreen(HWND hwnd)
+{
+	// Reymond Chen's work for Toggle between normal and fullscreen
+  DWORD dwStyle = GetWindowLong(hwnd, GWL_STYLE);
+  if (dwStyle & WS_OVERLAPPEDWINDOW) {
+    MONITORINFO mi = { sizeof(mi) };
+    if (GetWindowPlacement(hwnd, &GlobalWindowPos) &&
+        GetMonitorInfo(MonitorFromWindow(hwnd,
+                       MONITOR_DEFAULTTOPRIMARY), &mi)) {
+      SetWindowLong(hwnd, GWL_STYLE,
+                    dwStyle & ~WS_OVERLAPPEDWINDOW);
+      SetWindowPos(hwnd, HWND_TOP,
+                   mi.rcMonitor.left, mi.rcMonitor.top,
+                   mi.rcMonitor.right - mi.rcMonitor.left,
+                   mi.rcMonitor.bottom - mi.rcMonitor.top,
+                   SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+    }
+  } else {
+    SetWindowLong(hwnd, GWL_STYLE,
+                  dwStyle | WS_OVERLAPPEDWINDOW);
+    SetWindowPlacement(hwnd, &GlobalWindowPos);
+    SetWindowPos(hwnd, NULL, 0, 0, 0, 0,
+                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
+                 SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+  }
 }
 
 static void Win32GetInputFileLocation (Win32_RecordingState *RecordingState, bool isInputStream, int SlotIndex, int DstCount, char *Dst)
@@ -842,7 +848,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 	bool SleepIsGranular = (timeBeginPeriod(DesiredSchedulerMS) == TIMERR_NOERROR);
 
 	Win32LoadXInput();
-	DEBUGGlobalCursor = LoadCursor(0, IDC_ARROW);
+	
+#if HANDMADE_INTERNAL
+    DEBUGGlobalShowCursor = true;
+#endif
+
 	WNDCLASSA WindowClass = {};
 	//win32_window_dimension dimension = GetWindowDimension(hwnd);
 	Win32ResizeDBISection(&backBuffer, 960, 540);

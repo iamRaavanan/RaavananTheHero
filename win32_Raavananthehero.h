@@ -39,6 +39,15 @@ struct Win32_debug_time_marker
 	DWORD FlipWriteCursor;
 };
 
+struct Win32_game_code
+{
+	bool bIsValid;
+	HMODULE GameCodeDLL;
+	FILETIME DllLastWriteTime;
+	game_update_and_Render *UpdateAndRender;
+	get_game_sound_samples *GetSoundSamples;
+};
+
 #define WIN32_STATE_FILE_NAME_COUNT MAX_PATH
 struct Win32_Replay_Buffer
 {

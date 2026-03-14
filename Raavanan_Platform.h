@@ -132,6 +132,8 @@ typedef struct game_controller_input
 
 			game_button_state Back;
 			game_button_state Start;
+
+			game_button_state Terminator;
 		};
 	};	
 } game_controller_input;
