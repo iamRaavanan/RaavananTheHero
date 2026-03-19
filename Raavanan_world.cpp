@@ -142,12 +142,13 @@ inline void ChangeEntityLocation (memory_arena *Arena, world *World, uint32 LowE
 			if(Chunk)
 			{
 				world_entity_block *FirstBlock = &Chunk->FirstBlock;
-				for(world_entity_block *Block = &Chunk->FirstBlock; Block; Block = Block->Next)
+				for(world_entity_block *Block = FirstBlock; Block; Block = Block->Next)
 				{
 					for (uint32 index = 0; index < Block->EntityCount; ++index)
 					{
 						if(Block->LowEntityIndex[index] == LowEntityIndex)
 						{
+							Assert(FirstBlock->EntityCount > 0);
 							Block->LowEntityIndex[index] = FirstBlock->LowEntityIndex[--FirstBlock->EntityCount];
 							if(FirstBlock->EntityCount == 0)
 							{
@@ -168,6 +169,7 @@ inline void ChangeEntityLocation (memory_arena *Arena, world *World, uint32 LowE
 			}
 		}
 		world_chunk* Chunk = GetWorldChunk(World, NewP->ChunkX, NewP->ChunkY, NewP->ChunkZ);
+		Assert(Chunk);
 		world_entity_block* Block = &Chunk->FirstBlock;
 		if(Block->EntityCount == ArrayCount(Block->LowEntityIndex))
 		{
