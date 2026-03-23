@@ -75,7 +75,7 @@ inline void RecanonicalizeCoord (world *World, int32 *Tile, float *TileRelative)
 	Assert(IsCanonical(World, *TileRelative));
 }
 
-inline world_position MapIntoTileSpace (world *world, world_position BasePosition, v2 Offset)
+inline world_position MapIntoChunkSpace (world *world, world_position BasePosition, v2 Offset)
 {
 	world_position Result = BasePosition;
 	Result.Offset += Offset;
@@ -137,12 +137,12 @@ inline void ChangeEntityLocation (memory_arena *Arena, world *World, uint32 LowE
 	{
 		if(OldP)
 		{
-			world_chunk* Chunk = GetWorldChunk(World, OldP->ChunkX, OldP->ChunkY, OldP->ChunkZ);
+			world_chunk* Chunk = GetWorldChunk(World, OldP->ChunkX, OldP->ChunkY, OldP->ChunkZ, Arena);
 			Assert(Chunk);
 			if(Chunk)
 			{
 				world_entity_block *FirstBlock = &Chunk->FirstBlock;
-				for(world_entity_block *Block = FirstBlock; Block; Block = Block->Next)
+				for(world_entity_block *Block = FirstBlock; Block!=nullptr; Block=Block->Next)
 				{
 					for (uint32 index = 0; index < Block->EntityCount; ++index)
 					{
@@ -168,7 +168,7 @@ inline void ChangeEntityLocation (memory_arena *Arena, world *World, uint32 LowE
 				}
 			}
 		}
-		world_chunk* Chunk = GetWorldChunk(World, NewP->ChunkX, NewP->ChunkY, NewP->ChunkZ);
+		world_chunk* Chunk = GetWorldChunk(World, NewP->ChunkX, NewP->ChunkY, NewP->ChunkZ, Arena);
 		Assert(Chunk);
 		world_entity_block* Block = &Chunk->FirstBlock;
 		if(Block->EntityCount == ArrayCount(Block->LowEntityIndex))
