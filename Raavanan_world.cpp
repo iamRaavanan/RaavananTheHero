@@ -141,10 +141,11 @@ inline void ChangeEntityLocation (memory_arena *Arena, world *World, uint32 LowE
 			Assert(Chunk);
 			if(Chunk)
 			{
+				bool NotFound = true;
 				world_entity_block *FirstBlock = &Chunk->FirstBlock;
-				for(world_entity_block *Block = FirstBlock; Block!=nullptr; Block=Block->Next)
+				for(world_entity_block *Block = FirstBlock; Block && NotFound; Block=Block->Next)
 				{
-					for (uint32 index = 0; index < Block->EntityCount; ++index)
+					for (uint32 index = 0; ((index < Block->EntityCount) && NotFound); ++index)
 					{
 						if(Block->LowEntityIndex[index] == LowEntityIndex)
 						{
@@ -161,8 +162,7 @@ inline void ChangeEntityLocation (memory_arena *Arena, world *World, uint32 LowE
 									World->FirstFree = NextBlock;
 								}
 							}
-							Block = 0;
-							break;
+							NotFound = false;
 						}
 					}
 				}
