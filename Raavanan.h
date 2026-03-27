@@ -42,8 +42,7 @@ struct loaded_bitmap
 
 struct hero_bitmaps
 {
-	int32 AlignX;
-	int32 AlignY;
+	v2 Align;
 	loaded_bitmap Head;
 	loaded_bitmap Cape;
 	loaded_bitmap Torso;
@@ -53,7 +52,9 @@ enum entity_type
 {
 	EntityType_None,
 	EntityType_Hero,
-	EntityType_Wall
+	EntityType_Wall,
+	EntityType_Familiar,
+	EntityType_Monster
 };
 
 struct high_entity
@@ -80,11 +81,31 @@ struct low_entity
 	uint32 HighEntityIndex;
 };
 
+struct add_low_entity_result
+{
+	low_entity* Low;
+	uint32 LowIndex;
+};
+
 struct entity
 {
 	uint32 LowIndex;
 	low_entity* Low;
 	high_entity* High;
+};
+
+struct entity_visible_piece
+{
+	loaded_bitmap* Bitmap;
+	v2 Offset;
+	float OffsetZ;
+	float Alpha;
+};
+
+struct entity_visible_piece_group
+{
+	uint32 PieceCount;
+	entity_visible_piece Pieces[8];
 };
 
 struct game_state
