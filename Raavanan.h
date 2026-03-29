@@ -65,7 +65,7 @@ struct high_entity
 	float dZ;
 	uint32 ChunkZ;
 	uint32 FacingDirection;
-
+	float tBob;
 	uint32 LowEntityIndex;
 };
 
@@ -100,6 +100,7 @@ struct entity_visible_piece
 	v2 Offset;
 	float OffsetZ;
 	float Alpha;
+	float EntityZCofficient;
 };
 
 struct entity_visible_piece_group
