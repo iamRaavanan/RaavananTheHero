@@ -57,6 +57,13 @@ enum entity_type
 	EntityType_Monster
 };
 
+#define HIT_POINT_SUB_COUNT 4
+struct hit_point
+{
+	uint8 Flags;
+	uint8 FilledAmount;
+};
+
 struct high_entity
 {
 	v2 Pos;
@@ -79,6 +86,9 @@ struct low_entity
 	int32 dAbsTileZ;
 
 	uint32 HighEntityIndex;
+
+	uint32 HitPointMax;
+	hit_point HitPoint[16];
 };
 
 struct add_low_entity_result
@@ -94,26 +104,12 @@ struct entity
 	high_entity* High;
 };
 
-struct entity_visible_piece
-{
-	loaded_bitmap* Bitmap;
-	v2 Offset;
-	float OffsetZ;
-	float Alpha;
-	float EntityZCofficient;
-};
-
-struct entity_visible_piece_group
-{
-	uint32 PieceCount;
-	entity_visible_piece Pieces[8];
-};
-
 struct game_state
 {
 	world *World;
 	memory_arena WorldArena;	
-
+	
+	float MetersToPixel;
 	uint32 CameraFollowingEntityIndex;
 	world_position CameraP;
 
@@ -140,6 +136,23 @@ struct game_state
 	int PlayerY;
 	float jumpTime;
 #endif
+};
+
+struct entity_visible_piece
+{
+	loaded_bitmap* Bitmap;
+	v2 Offset;
+	float OffsetZ;
+	float EntityZCofficient;
+	float R, G, B, A;
+	v2 Dim;
+};
+
+struct entity_visible_piece_group
+{
+	uint32 PieceCount;
+	entity_visible_piece Pieces[8];
+	game_state* GameState;
 };
 
 static void UpdateSound(game_state *GameState, game_sound_buffer *SoundBuffer);

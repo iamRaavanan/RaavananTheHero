@@ -1,7 +1,5 @@
 #ifndef RAAVANAN_MATH_H
 
-// struct 
-// {
 union v2
 {
     struct
@@ -10,14 +8,57 @@ union v2
     };
     float E[2];
 };
-    //float &operator[] (int index) { return ((&X)[index]);}
-//};
+
+union v3
+{
+    struct
+    {
+        float X, Y, Z;
+    };
+    struct
+    {
+        float R, G, B;
+    };
+    float E[3];
+};
+
+union v4
+{
+    struct
+    {
+        float X, Y, Z, W;
+    };
+    struct
+    {
+        float R, G, B, A;
+    };
+    float E[4];
+};
 
 inline v2 V2(float X, float Y)
 {
     v2 Result;
     Result.X = X;
     Result.Y = Y;
+    return Result;
+}
+
+inline v3 V3(float X, float Y, float Z)
+{
+    v3 Result;
+    Result.X = X;
+    Result.Y = Y;
+    Result.Z = Z;
+    return Result;
+}
+
+inline v4 V4(float X, float Y, float Z, float W)
+{
+    v4 Result;
+    Result.X = X;
+    Result.Y = Y;
+    Result.Z = Z;
+    Result.W = W;
     return Result;
 }
 
