@@ -54,7 +54,8 @@ enum entity_type
 	EntityType_Hero,
 	EntityType_Wall,
 	EntityType_Familiar,
-	EntityType_Monster
+	EntityType_Monster,
+	EntityType_Sword
 };
 
 #define HIT_POINT_SUB_COUNT 4
@@ -89,6 +90,8 @@ struct low_entity
 
 	uint32 HitPointMax;
 	hit_point HitPoint[16];
+
+	uint32 SwordLowIndex;
 };
 
 struct add_low_entity_result
@@ -125,6 +128,7 @@ struct game_state
 	hero_bitmaps HeroBitmaps[4];
 
 	loaded_bitmap Tree;
+	loaded_bitmap Sword;
 #if RAAVANAN_INTERNAL
 	int ToneHz;
 	int XOffset;

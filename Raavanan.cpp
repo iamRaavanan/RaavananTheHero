@@ -339,28 +339,48 @@ internal add_low_entity_result AddLowEntity(game_state* GameState, entity_type T
 	low_entity* LowEntity = GameState->LowEntities + EntityIndex;
 	*LowEntity = {};
 	LowEntity->Type = Type;
-	if(WorldPos) {
-		LowEntity->Pos = *WorldPos;
-		ChangeEntityLocation(&GameState->WorldArena, GameState->World, EntityIndex, 0, WorldPos);
-	}
+
+	ChangeEntityLocation(&GameState->WorldArena, GameState->World, EntityIndex, LowEntity, 0, WorldPos);
+
 	add_low_entity_result Result = {};
 	Result.Low = LowEntity;
 	Result.LowIndex = EntityIndex;
 	return Result;
 }
 
+internal void InitHitPoints(low_entity* LowEntity, uint32 Count)
+{
+	Assert(Count < ArrayCount(LowEntity->HitPoint));
+	LowEntity->HitPointMax = Count;
+	LowEntity->HitPoint[Count-1].FilledAmount = HIT_POINT_SUB_COUNT;
+	for(uint32 HitPointIndex = 0; HitPointIndex < Count-1; ++HitPointIndex)
+	{
+		hit_point* HitPoint = LowEntity->HitPoint + HitPointIndex;
+		HitPoint->Flags = 0;
+		HitPoint->FilledAmount = HIT_POINT_SUB_COUNT;
+	}
+}
+
+internal add_low_entity_result AddSword(game_state* GameState)
+{
+	add_low_entity_result Entity = AddLowEntity(GameState, EntityType_Sword, 0);
+	Entity.Low->Height = 0.5f;
+	Entity.Low->Width = 1.0f;
+	Entity.Low->Collides = false;
+	return Entity;
+}
+
 internal add_low_entity_result AddPlayer (game_state* GameState)
 {
 	world_position WorldPos = GameState->CameraP;
 	add_low_entity_result Entity = AddLowEntity(GameState, EntityType_Hero, &WorldPos);
-
-	Entity.Low->HitPointMax = 3;
-	Entity.Low->HitPoint[2].FilledAmount = HIT_POINT_SUB_COUNT;
-	Entity.Low->HitPoint[0] = Entity.Low->HitPoint[1] = Entity.Low->HitPoint[2];
+	InitHitPoints(Entity.Low, 3);
 	Entity.Low->Height = 0.5f;
 	Entity.Low->Width = 1.0f;
 	Entity.Low->Collides = true;
 
+	add_low_entity_result Sword = AddSword(GameState);
+	Entity.Low->SwordLowIndex = Sword.LowIndex;
 	if(GameState->CameraFollowingEntityIndex == 0)
 	{
 		GameState->CameraFollowingEntityIndex = Entity.LowIndex;
@@ -372,6 +392,7 @@ internal add_low_entity_result AddMonster(game_state* GameState, uint32 AbsTileX
 {
 	world_position WorldPos = ChunkPositionFromTilePosition(GameState->World, AbsTileX, AbsTileY, AbsTileZ);
 	add_low_entity_result Entity = AddLowEntity(GameState, EntityType_Monster, &WorldPos);
+	InitHitPoints(Entity.Low, 5);
 	Entity.Low->Height = 0.5f;
 	Entity.Low->Width = 1.0f;
 	Entity.Low->Collides = true;
@@ -533,8 +554,7 @@ internal void MoveEntity (game_state* GameState, entity Entity, float deltaTime,
 	}
 	world_position NewPos = MapIntoChunkSpace (GameState->World, GameState->CameraP, Entity.High->Pos);
 	
-	ChangeEntityLocation(&GameState->WorldArena, GameState->World, Entity.LowIndex, &Entity.Low->Pos, &NewPos);
-	Entity.Low->Pos = NewPos;
+	ChangeEntityLocation(&GameState->WorldArena, GameState->World, Entity.LowIndex, Entity.Low, &Entity.Low->Pos, &NewPos);
 }
 
 internal void SetCamera (game_state* GameState, world_position NewCameraP)
@@ -651,6 +671,27 @@ internal void UpdateMonster(game_state* GameState, entity Entity, float dt)
 
 }
 
+internal void DrawHitPoints(low_entity* LowEntity, entity_visible_piece_group* PieceGroup)
+{
+	if(LowEntity->HitPointMax >= 1)
+	{
+		v2 HealthDim = {0.2f, 0.2f};
+		float SpacingX = 1.5f * HealthDim.X;
+		v2 HitP = {-0.5f * (LowEntity->HitPointMax - 1) * SpacingX, -0.25f};
+		v2 dHitP = {SpacingX, 0.0f};
+		for(uint32 HealthIndex = 0; HealthIndex < LowEntity->HitPointMax; ++HealthIndex)
+		{
+			hit_point* HitPoint = LowEntity->HitPoint + HealthIndex;
+			v4 Color = {1.0f, 0.0f, 0.0f, 1.0f};
+			if(HitPoint->FilledAmount == 0)
+			{
+				Color = {0.2f, 0.2f, 0.2f, 1.0f};
+			}
+			PushRect(PieceGroup, HitP, 0, HealthDim, Color, 0.0f);
+			HitP += dHitP;
+		}
+	}
+}
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
 	Assert((&Input->Controllers[0].Terminator - &Input->Controllers[0].Buttons[0]) == ArrayCount(Input->Controllers[0].Buttons));
@@ -665,6 +706,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 		GameState->Backdrop = DEBUGLoadBMP (Thread, Memory->DEBUGReadEntireFile, "test/test_background.bmp");
 		GameState->Shadow = DEBUGLoadBMP (Thread, Memory->DEBUGReadEntireFile, "test/test_hero_shadow.bmp");
 		GameState->Tree = DEBUGLoadBMP (Thread, Memory->DEBUGReadEntireFile, "test2/tree00.bmp");
+		GameState->Sword = DEBUGLoadBMP (Thread, Memory->DEBUGReadEntireFile, "test2/rock03.bmp");
 		hero_bitmaps *Bitmap = GameState->HeroBitmaps;
 		Bitmap->Head = DEBUGLoadBMP(Thread, Memory->DEBUGReadEntireFile, "test/test_hero_right_head.bmp");
 		Bitmap->Cape = DEBUGLoadBMP(Thread, Memory->DEBUGReadEntireFile, "test/test_hero_right_cape.bmp");
@@ -897,11 +939,37 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 				}
 			}
 			
-			if (Controller->ActionUp.EndedDown)
+			if (Controller->Start.EndedDown)
 			{
 				ControllingEntity.High->dZ = 3.0f;
 			}
+			v2 dSword = {};
+			if(Controller->ActionUp.EndedDown)
+			{
+				dSword = V2(0.0f, 1.0f);
+			}
+			if(Controller->ActionDown.EndedDown)
+			{
+				dSword = V2(0.0f, -1.0f);
+			}
+			if(Controller->ActionLeft.EndedDown)
+			{
+				dSword = V2(-1.0f, 0.0f);
+			}
+			if(Controller->ActionRight.EndedDown)
+			{
+				dSword = V2(1.0f, 0.0f);
+			}
 			MoveEntity(GameState, ControllingEntity, Input->deltaTime, ddPlayerP);
+			if((dSword.X != 0) || (dSword.Y != 0))
+			{
+				low_entity* Sword = GetLowEntity(GameState, ControllingEntity.Low->SwordLowIndex);
+				if(Sword && !IsWorldPosValid(Sword->Pos))
+				{
+					world_position SwordP = ControllingEntity.Low->Pos;
+					ChangeEntityLocation(&GameState->WorldArena, GameState->World, ControllingEntity.Low->SwordLowIndex, Sword, 0, &SwordP);
+				}
+			}
 		}
 	}
 
@@ -990,24 +1058,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 					PushBitmap(&PieceGroup, &HeroBitsmaps->Torso, V2(0,0), 0, HeroBitsmaps->Align);
 					PushBitmap(&PieceGroup, &HeroBitsmaps->Cape, V2(0,0), 0, HeroBitsmaps->Align);
 					PushBitmap(&PieceGroup, &HeroBitsmaps->Head, V2(0,0), 0, HeroBitsmaps->Align);
-					if(LowEntity->HitPointMax >= 1)
-					{
-						v2 HealthDim = {0.2f, 0.2f};
-						float SpacingX = 1.5f * HealthDim.X;
-						v2 HitP = {-0.5f * (LowEntity->HitPointMax - 1) * SpacingX, -0.25f};
-						v2 dHitP = {SpacingX, 0.0f};
-						for(uint32 HealthIndex = 0; HealthIndex < LowEntity->HitPointMax; ++HealthIndex)
-						{
-							hit_point* HitPoint = LowEntity->HitPoint + HealthIndex;
-							v4 Color = {1.0f, 0.0f, 0.0f, 1.0f};
-							if(HitPoint->FilledAmount == 0)
-							{
-								Color = {0.2f, 0.2f, 0.2f, 1.0f};
-							}
-							PushRect(&PieceGroup, HitP, 0, HealthDim, Color, 0.0f);
-							HitP += dHitP;
-						}
-					}
+					DrawHitPoints (LowEntity, &PieceGroup);
 				}
 			break;
 			case EntityType_Wall:
@@ -1017,6 +1068,12 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 				#else
 				PushBitmap(&PieceGroup, &GameState->Tree, V2(0,0), 0, V2(40,80));
 				#endif
+				}
+			break;
+			case EntityType_Sword:
+				{
+					PushBitmap(&PieceGroup, &GameState->Shadow, V2(0,0), 0, HeroBitsmaps->Align, ShadowAlpha, 0.0f);
+					PushBitmap(&PieceGroup, &GameState->Sword, V2(0,0), 0, V2(30,10));
 				}
 			break;
 			case EntityType_Familiar:
@@ -1035,6 +1092,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 				UpdateMonster(GameState, Entity, dt);
 				PushBitmap(&PieceGroup, &GameState->Shadow, V2(0,0), 0, HeroBitsmaps->Align, ShadowAlpha, 0.0f);
 				PushBitmap(&PieceGroup, &HeroBitsmaps->Torso, V2(0,0), 0, HeroBitsmaps->Align);
+				DrawHitPoints (LowEntity, &PieceGroup);
 			}
 		}
 		
