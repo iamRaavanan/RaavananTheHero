@@ -152,7 +152,7 @@ inline void ChangeEntityLocationRaw (memory_arena *Arena, world *World, uint32 L
 	Assert(!OldP || IsWorldPosValid(*OldP));
 	Assert(!NewP || IsWorldPosValid(*NewP));
 
-	if(OldP && AreInSameChunk(World, OldP, NewP))
+	if(OldP && NewP && AreInSameChunk(World, OldP, NewP))
 	{
 
 	}

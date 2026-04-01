@@ -28,8 +28,7 @@ void *PushSize_(memory_arena *MemoryArena, size_t Size)
 	MemoryArena->UsedSpace += Size;
 	return Result;
 }
-
-#include <math.h>
+#include "Raavanan_intrinsics.h"
 #include "Raavanan_math.h"
 #include "Raavanan_world.h"
 
@@ -92,6 +91,7 @@ struct low_entity
 	hit_point HitPoint[16];
 
 	uint32 SwordLowIndex;
+	float DistanceRemaining;
 };
 
 struct add_low_entity_result

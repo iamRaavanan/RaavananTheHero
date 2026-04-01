@@ -129,7 +129,11 @@ inline float LengthSq(v2 A)
     float Result = Dot(A, A);
     return Result;
 }
-
+inline float Length(v2 A)
+{
+    float Result = SquareRoot(LengthSq(A));
+    return Result;
+}
 struct rectangle2
 {
     v2 Min;
