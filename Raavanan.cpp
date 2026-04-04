@@ -1,6 +1,9 @@
-
+#include "Raavanan.h"
 #include "Raavanan_random.h"
 #include "Raavanan_world.cpp"
+#include "Raavanan_sim_region.cpp"
+#include "Raavanan_entity.cpp"
+
 internal void UpdateSound(game_state *GameState, game_sound_buffer *SoundBuffer, int ToneHz)
 {
 	int16 ToneVolume = 3000;
@@ -219,127 +222,13 @@ inline v2 GetCameraSpaceP(game_state* GameState, low_entity* EntityLow)
 	return Result;
 }
 
-inline high_entity* MakeEntityHighFrequency (game_state* GameState, low_entity* EntityLow, uint32 LowIndex, v2 CameraSpaceP)
-{	
-	high_entity* EntityHigh = 0;
-	Assert(EntityLow->HighEntityIndex == 0);
-	if(EntityLow->HighEntityIndex == 0)
-	{
-		if (GameState->HighEntityCount < ArrayCount(GameState->HighEntities))
-		{
-			uint32 HighIndex = GameState->HighEntityCount++;
-			EntityHigh = GameState->HighEntities + HighIndex;
-			EntityHigh->Pos = CameraSpaceP;
-			EntityHigh->dPlayerP = V2(0,0);
-			EntityHigh->ChunkZ = EntityLow->Pos.ChunkZ;
-			EntityHigh->FacingDirection = 0;
-			EntityHigh->LowEntityIndex = LowIndex;
-
-			EntityLow->HighEntityIndex = HighIndex;
-		}
-		else
-		{
-			InvalidCodePath;
-		}
-	}
-	return EntityHigh;
-}
-
-inline high_entity* MakeEntityHighFrequency (game_state* GameState, uint32 LowIndex)
-{
-	high_entity* EntityHigh = 0;
-	low_entity* EntityLow = &GameState->LowEntities[LowIndex];
-	if (EntityLow->HighEntityIndex)
-	{
-		EntityHigh = GameState->HighEntities + EntityLow->HighEntityIndex;
-	}
-	else
-	{
-		v2 CameraSpaceP = GetCameraSpaceP(GameState, EntityLow);
-		EntityHigh = MakeEntityHighFrequency(GameState, EntityLow, LowIndex, CameraSpaceP);
-	}
-	
-	return EntityHigh;
-}
-
-inline entity ForceEntityIntoHigh(game_state* GameState, uint32 Index)
-{
-	entity Result = {};
-	if ((Index > 0) && (Index < GameState->LowEntityCount))
-	{
-		Result.LowIndex = Index;
-		Result.Low = GameState->LowEntities + Index;
-		Result.High = MakeEntityHighFrequency (GameState, Index);
-	}
-	return Result;
-}
-
-internal void MakeEntityLowFrequency (game_state* GameState, uint32 LowIndex)
-{
-	low_entity* EntityLow = &GameState->LowEntities[LowIndex];
-	uint32 HighIndex = EntityLow->HighEntityIndex;
-	if (HighIndex)
-	{
-		uint32 LastHighIndex = GameState->HighEntityCount - 1;
-		if (HighIndex != LastHighIndex)
-		{
-			high_entity* LastEntity = GameState->HighEntities + LastHighIndex;
-			high_entity* DelEntity = GameState->HighEntities + HighIndex;
-			*DelEntity = *LastEntity;
-			GameState->LowEntities[LastEntity->LowEntityIndex].HighEntityIndex = HighIndex;
-		}
-		--GameState->HighEntityCount;
-		EntityLow->HighEntityIndex = 0;
-	}
-}
-
-inline low_entity* GetLowEntity(game_state* GameState, uint32 Index)
-{
-	low_entity* Result = 0;
-	if ((Index > 0) && (Index < GameState->LowEntityCount))
-	{
-		Result = GameState->LowEntities + Index;
-	}
-	return Result;
-}
-
-inline bool ValidateEntityPairs(game_state* GameState)
-{
-	bool Valid = true;
-	for (uint32 EntityIndex = 1; EntityIndex < GameState->HighEntityCount; ++EntityIndex)
-	{
-		high_entity* High = GameState->HighEntities + EntityIndex;
-		Valid = Valid && (GameState->LowEntities[High->LowEntityIndex].HighEntityIndex == EntityIndex);
-	}
-	return Valid;
-}
-
-internal void OffsetAndCheckFrequencyByArea(game_state* GameState, v2 Offset, rectangle2 HighFreqBounds)
-{
-	for (uint32 EntityIndex = 1; EntityIndex < GameState->HighEntityCount; )
-	{
-		high_entity* High = GameState->HighEntities + EntityIndex;
-		low_entity* Low = GameState->LowEntities + High->LowEntityIndex;
-		High->Pos += Offset;
-		if(IsWorldPosValid(Low->Pos) && IsInRectangle(HighFreqBounds, High->Pos))
-		{
-			EntityIndex++;
-		}
-		else
-		{
-			Assert(GameState->LowEntities[High->LowEntityIndex].HighEntityIndex == EntityIndex);
-			MakeEntityLowFrequency(GameState, High->LowEntityIndex);
-		}
-	}
-}
-
 internal add_low_entity_result AddLowEntity(game_state* GameState, entity_type Type, world_position* WorldPos)
 {
 	Assert (GameState->LowEntityCount < ArrayCount(GameState->LowEntities));
 	uint32 EntityIndex = GameState->LowEntityCount++;
 	low_entity* LowEntity = GameState->LowEntities + EntityIndex;
 	*LowEntity = {};
-	LowEntity->Type = Type;
+	LowEntity->Sim.Type = Type;
 
 	ChangeEntityLocation(&GameState->WorldArena, GameState->World, EntityIndex, LowEntity, 0, WorldPos);
 
@@ -351,12 +240,11 @@ internal add_low_entity_result AddLowEntity(game_state* GameState, entity_type T
 
 internal void InitHitPoints(low_entity* LowEntity, uint32 Count)
 {
-	Assert(Count < ArrayCount(LowEntity->HitPoint));
-	LowEntity->HitPointMax = Count;
-	LowEntity->HitPoint[Count-1].FilledAmount = HIT_POINT_SUB_COUNT;
+	Assert(Count < ArrayCount(LowEntity->Sim.HitPoint));
+	LowEntity->Sim.HitPointMax = Count;
 	for(uint32 HitPointIndex = 0; HitPointIndex < Count-1; ++HitPointIndex)
 	{
-		hit_point* HitPoint = LowEntity->HitPoint + HitPointIndex;
+		hit_point* HitPoint = LowEntity->Sim.HitPoint + HitPointIndex;
 		HitPoint->Flags = 0;
 		HitPoint->FilledAmount = HIT_POINT_SUB_COUNT;
 	}
@@ -365,9 +253,9 @@ internal void InitHitPoints(low_entity* LowEntity, uint32 Count)
 internal add_low_entity_result AddSword(game_state* GameState)
 {
 	add_low_entity_result Entity = AddLowEntity(GameState, EntityType_Sword, 0);
-	Entity.Low->Height = 0.5f;
-	Entity.Low->Width = 1.0f;
-	Entity.Low->Collides = false;
+	Entity.Low->Sim.Height = 0.5f;
+	Entity.Low->Sim.Width = 1.0f;
+	Entity.Low->Sim.Collides = false;
 	return Entity;
 }
 
@@ -375,13 +263,13 @@ internal add_low_entity_result AddPlayer (game_state* GameState)
 {
 	world_position WorldPos = GameState->CameraP;
 	add_low_entity_result Entity = AddLowEntity(GameState, EntityType_Hero, &WorldPos);
+	Entity.Low->Sim.Height = 0.5f;
+	Entity.Low->Sim.Width = 1.0f;
+	Entity.Low->Sim.Collides = true;
 	InitHitPoints(Entity.Low, 3);
-	Entity.Low->Height = 0.5f;
-	Entity.Low->Width = 1.0f;
-	Entity.Low->Collides = true;
 
 	add_low_entity_result Sword = AddSword(GameState);
-	Entity.Low->SwordLowIndex = Sword.LowIndex;
+	Entity.Low->Sim.Sword.Index = Sword.LowIndex;
 	if(GameState->CameraFollowingEntityIndex == 0)
 	{
 		GameState->CameraFollowingEntityIndex = Entity.LowIndex;
@@ -394,9 +282,9 @@ internal add_low_entity_result AddMonster(game_state* GameState, uint32 AbsTileX
 	world_position WorldPos = ChunkPositionFromTilePosition(GameState->World, AbsTileX, AbsTileY, AbsTileZ);
 	add_low_entity_result Entity = AddLowEntity(GameState, EntityType_Monster, &WorldPos);
 	InitHitPoints(Entity.Low, 5);
-	Entity.Low->Height = 0.5f;
-	Entity.Low->Width = 1.0f;
-	Entity.Low->Collides = true;
+	Entity.Low->Sim.Height = 0.5f;
+	Entity.Low->Sim.Width = 1.0f;
+	Entity.Low->Sim.Collides = true;
 	return Entity;
 }
 
@@ -404,9 +292,9 @@ internal add_low_entity_result AddFamiliar(game_state* GameState, uint32 AbsTile
 {
 	world_position WorldPos = ChunkPositionFromTilePosition(GameState->World, AbsTileX, AbsTileY, AbsTileZ);
 	add_low_entity_result Entity = AddLowEntity(GameState, EntityType_Familiar, &WorldPos);
-	Entity.Low->Height = 0.5f;
-	Entity.Low->Width = 1.0f;
-	Entity.Low->Collides = false;
+	Entity.Low->Sim.Height = 0.5f;
+	Entity.Low->Sim.Width = 1.0f;
+	Entity.Low->Sim.Collides = false;
 	return Entity;
 }
 
@@ -415,211 +303,11 @@ internal add_low_entity_result AddWall (game_state* GameState, uint32 AbsTileX, 
 	world_position WorldPos = ChunkPositionFromTilePosition(GameState->World, AbsTileX, AbsTileY, AbsTileZ);
 	add_low_entity_result Entity = AddLowEntity (GameState, EntityType_Wall, &WorldPos);
 	Entity.Low->Pos = ChunkPositionFromTilePosition(GameState->World, AbsTileX, AbsTileY, AbsTileZ);
-	Entity.Low->Height = GameState->World->TileSideInMeters;
-	Entity.Low->Width = Entity.Low->Height;
-	Entity.Low->Collides = true;
+	Entity.Low->Sim.Height = GameState->World->TileSideInMeters;
+	Entity.Low->Sim.Width = Entity.Low->Sim.Height;
+	Entity.Low->Sim.Collides = true;
 	
 	return Entity;
-}
-
-internal bool TestWall (float WallX, float RelX, float RelY, float PlayerDeltaX, float PlayerDeltaY,
-						float *tMin, float MinY, float MaxY)
-{
-	bool Hit = false;
-	float tEpsilon = 0.0001f;
-	if(PlayerDeltaX != 0.0f)
-	{
-		float tResult = (WallX - RelX) / PlayerDeltaX;
-		float Y = RelY + tResult * PlayerDeltaY;
-		if((tResult >= 0.0f) && (*tMin > tResult))
-		{	
-			if((Y >= MinY) && (Y <= MaxY))
-			{
-				*tMin = Maximum(0.0f, tResult - tEpsilon);
-				Hit = true;
-			}
-		}
-	}
-	return Hit;
-}
-
-struct move_spec
-{
-	bool UnitMaxAccelVector;
-	float Speed;
-	float Drag;
-};
-
-inline move_spec DefaultMoveSpec()
-{
-	move_spec Result = {};
-	Result.UnitMaxAccelVector = false;
-	Result.Speed = 1.0f;
-	Result.Drag = 0.0f;
-	return Result;
-}
-
-internal void MoveEntity (game_state* GameState, entity Entity, float deltaTime, move_spec* MoveSpec, v2 ddPlayer)
-{
-	world* World = GameState->World;
-	if(MoveSpec->UnitMaxAccelVector)
-	{
-		float ddPLength = LengthSq(ddPlayer);
-		if(ddPLength > 1.0f)
-		{
-			ddPlayer *= (1.0f / SquareRoot(ddPLength));
-		}
-	}
-	
-	ddPlayer *= MoveSpec->Speed;
-
-	ddPlayer += -MoveSpec->Drag * Entity.High->dPlayerP;
-
-	v2 OldPlayerP = Entity.High->Pos;
-	v2 PlayerDelta = 0.5f * ddPlayer * Square(deltaTime) + Entity.High->dPlayerP * deltaTime;
-	Entity.High->dPlayerP = ddPlayer * deltaTime + Entity.High->dPlayerP;
-	v2 NewPlayerP = OldPlayerP + PlayerDelta;
-
-	for (uint32 Iteration = 0; (Iteration < 4); ++Iteration)
-	{
-		float tMin = 1.0f;
-		v2 WallNormal = {};
-		uint32 HitHighEntityIndex = 0;
-		v2 DesiredPos = Entity.High->Pos + PlayerDelta;
-		if(Entity.Low->Collides)
-		{
-			for (uint32 TestHighEntityIndex = 1; TestHighEntityIndex < GameState->HighEntityCount; ++TestHighEntityIndex)
-			{
-				if(TestHighEntityIndex != Entity.Low->HighEntityIndex)
-				{
-					entity TestEntity;
-					TestEntity.High = GameState->HighEntities + TestHighEntityIndex;
-					TestEntity.LowIndex = TestEntity.High->LowEntityIndex;
-					TestEntity.Low = GameState->LowEntities + TestEntity.LowIndex;
-
-					if(TestEntity.Low->Collides)
-					{
-						float DiameterW = TestEntity.Low->Width + Entity.Low->Width;
-						float DiameterH = TestEntity.Low->Height + Entity.Low->Height;
-						v2 MinCorner = -0.5f * v2 {DiameterW, DiameterH};
-						v2 MaxCorner = 0.5f * v2 {DiameterW, DiameterH};
-
-						v2 Rel = Entity.High->Pos - TestEntity.High->Pos;
-						
-						if(TestWall (MinCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y, &tMin, MinCorner.Y, MaxCorner.Y))
-						{
-							WallNormal = V2(-1,0);
-							HitHighEntityIndex = TestHighEntityIndex;
-						}
-						if(TestWall (MaxCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y, &tMin, MinCorner.Y, MaxCorner.Y))
-						{
-							WallNormal = V2(1,0);
-							HitHighEntityIndex = TestHighEntityIndex;
-						}
-						if(TestWall (MinCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X, &tMin, MinCorner.X, MaxCorner.X))
-						{
-							WallNormal = V2(0,-1);
-							HitHighEntityIndex = TestHighEntityIndex;
-						}
-						if(TestWall (MaxCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X, &tMin, MinCorner.X, MaxCorner.X))
-						{
-							WallNormal = V2(0,1);
-							HitHighEntityIndex = TestHighEntityIndex;
-						}
-					}
-				}			
-			}		
-		}
-		Entity.High->Pos += tMin * PlayerDelta;
-		if(HitHighEntityIndex)
-		{
-			Entity.High->dPlayerP = Entity.High->dPlayerP - 1 * Dot(Entity.High->dPlayerP, WallNormal) * WallNormal;
-			PlayerDelta = DesiredPos - Entity.High->Pos;
-			PlayerDelta = PlayerDelta - 1 * Dot(PlayerDelta, WallNormal) * WallNormal;
-
-			high_entity* HitHigh = GameState->HighEntities + HitHighEntityIndex;
-			low_entity* HitLow = GameState->LowEntities + HitHigh->LowEntityIndex;
-			// Entity.High->ChunkZ += HitLow->dAbsTileZ;
-		}
-		else
-		{
-			break;
-		}		
-	}
-
-
-	if((Entity.High->dPlayerP.X == 0.0f) && (Entity.High->dPlayerP.Y == 0.0f))
-	{
-
-	}
-	else if(AbsoluteValue(Entity.High->dPlayerP.X) > AbsoluteValue(Entity.High->dPlayerP.Y))
-	{
-		if(Entity.High->dPlayerP.X > 0)
-		{
-			Entity.High->FacingDirection = 0;
-		}
-		else
-		{
-			Entity.High->FacingDirection = 2;
-		}
-	}
-	else
-	{
-		if(Entity.High->dPlayerP.Y > 0)
-		{
-			Entity.High->FacingDirection = 1;
-		}
-		else
-		{
-			Entity.High->FacingDirection = 3;
-		}
-	}
-	world_position NewPos = MapIntoChunkSpace (GameState->World, GameState->CameraP, Entity.High->Pos);
-	
-	ChangeEntityLocation(&GameState->WorldArena, GameState->World, Entity.LowIndex, Entity.Low, &Entity.Low->Pos, &NewPos);
-}
-
-internal void SetCamera (game_state* GameState, world_position NewCameraP)
-{
-	world* World = GameState->World;
-	Assert(ValidateEntityPairs(GameState));
-	world_difference dCameraP = Subtract (World, &NewCameraP, &GameState->CameraP);
-	GameState->CameraP = NewCameraP;
-	uint32 TileSpanX = 17 * 3;
-	uint32 TileSpanY = 9 * 3;
-	rectangle2 CameraBounds = RectCenterDim(v2{0,0}, World->TileSideInMeters * v2 {(float)TileSpanX, (float)TileSpanY});
-	v2 EntityOffsetForFrame = -dCameraP.dXY;
-	OffsetAndCheckFrequencyByArea(GameState, EntityOffsetForFrame, CameraBounds);
-	Assert(ValidateEntityPairs(GameState));
-	world_position MinChunkP = MapIntoChunkSpace(GameState->World, NewCameraP, GetMinCorner(CameraBounds));
-	world_position MaxChunkP = MapIntoChunkSpace(GameState->World, NewCameraP, GetMaxCorner(CameraBounds));
-	for(int32 ChunkY = MinChunkP.ChunkY; ChunkY < MaxChunkP.ChunkY; ++ChunkY)
-	{
-		for(int32 ChunkX = MinChunkP.ChunkX; ChunkX < MaxChunkP.ChunkX; ++ChunkX)
-		{
-			world_chunk* Chunk = GetWorldChunk(GameState->World, ChunkX, ChunkY, NewCameraP.ChunkZ);
-			if(Chunk)
-			{
-				for(world_entity_block* Block = &Chunk->FirstBlock; Block; Block = Block->Next)
-				{
-					for (uint32 EntityIndex = 0; EntityIndex < Block->EntityCount; ++EntityIndex)
-					{
-						uint32 LowEntityIndex = Block->LowEntityIndex[EntityIndex];
-						low_entity* Low = GameState->LowEntities + LowEntityIndex;
-						if (Low->HighEntityIndex == 0)
-						{
-							v2 CameraSpaceP = GetCameraSpaceP(GameState, Low);
-							if(IsInRectangle(CameraBounds, CameraSpaceP))
-							{
-								MakeEntityHighFrequency (GameState, Low, LowEntityIndex, CameraSpaceP);
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-	Assert(ValidateEntityPairs(GameState));
 }
 
 internal void PushPiece(entity_visible_piece_group* Group, loaded_bitmap* Bitmap, v2 Offset, float OffsetZ, v2 Align, 
@@ -648,80 +336,17 @@ internal void PushRect(entity_visible_piece_group* Group, v2 Offset, float Offse
 	PushPiece(Group, 0, Offset, OffsetZ, V2(0,0), Dim, Color, EntityZCofficient);
 }
 
-internal entity EntityFromHighIndex(game_state* GameState, uint32 HighEntityIndex)
+internal void DrawHitPoints(sim_entity* Entity, entity_visible_piece_group* PieceGroup)
 {
-	entity Result = {};
-	if(HighEntityIndex)
-	{
-		Assert(HighEntityIndex < ArrayCount(GameState->HighEntities));
-		Result.High = GameState->HighEntities + HighEntityIndex;
-		Result.LowIndex = Result.High->LowEntityIndex;
-		Result.Low = GameState->LowEntities + Result.LowIndex;
-	}
-	return Result;
-}
-
-internal void UpdateFamiliar(game_state* GameState, entity Entity, float dt)
-{
-	entity ClosestHero = {};
-	float ClosestDstSq = Square(10.0f);
-	for(uint32 HighEntityIndex = 1; HighEntityIndex < GameState->HighEntityCount; ++HighEntityIndex)
-	{
-		entity TestEntity = EntityFromHighIndex(GameState, HighEntityIndex);
-		if(TestEntity.Low->Type == EntityType_Hero)
-		{
-			float TestDstSq = LengthSq(TestEntity.High->Pos - Entity.High->Pos);
-			if(ClosestDstSq > TestDstSq)
-			{
-				ClosestHero = TestEntity;
-				ClosestDstSq = TestDstSq;
-			}
-		}
-	}
-	v2 ddp = {};
-	if(ClosestHero.High && ClosestDstSq > Square(3.0f))
-	{
-		float Acceleration = 0.5f;
-		float OneOverLength = Acceleration / SquareRoot(ClosestDstSq);
-		ddp = OneOverLength * (ClosestHero.High->Pos - Entity.High->Pos);
-	}
-	move_spec MoveSpec = DefaultMoveSpec();
-	MoveSpec.UnitMaxAccelVector = true;
-	MoveSpec.Speed = 50.0f;
-	MoveSpec.Drag = 8.0f;
-	MoveEntity(GameState, Entity, dt, &MoveSpec, ddp);
-}
-
-internal void UpdateMonster(game_state* GameState, entity Entity, float dt)
-{
-
-}
-
-internal void UpdateSword(game_state* GameState, entity Entity, float dt)
-{
-	move_spec MoveSpec = DefaultMoveSpec();
-	MoveSpec.Speed = 0.0f;
-	v2 OldP = Entity.High->Pos;
-	MoveEntity(GameState, Entity, dt, &MoveSpec, V2(0,0));
-	float DistanceTraveled = Length(Entity.High->Pos - OldP);
-	Entity.Low->DistanceRemaining -= DistanceTraveled;
-	if(Entity.Low->DistanceRemaining < 0)
-	{
-		ChangeEntityLocation(&GameState->WorldArena, GameState->World, Entity.LowIndex, Entity.Low, &Entity.Low->Pos, 0);
-	}
-}
-
-internal void DrawHitPoints(low_entity* LowEntity, entity_visible_piece_group* PieceGroup)
-{
-	if(LowEntity->HitPointMax >= 1)
+	if(Entity->HitPointMax >= 1)
 	{
 		v2 HealthDim = {0.2f, 0.2f};
 		float SpacingX = 1.5f * HealthDim.X;
-		v2 HitP = {-0.5f * (LowEntity->HitPointMax - 1) * SpacingX, -0.25f};
+		v2 HitP = {-0.5f * (Entity->HitPointMax - 1) * SpacingX, -0.25f};
 		v2 dHitP = {SpacingX, 0.0f};
-		for(uint32 HealthIndex = 0; HealthIndex < LowEntity->HitPointMax; ++HealthIndex)
+		for(uint32 HealthIndex = 0; HealthIndex < Entity->HitPointMax; ++HealthIndex)
 		{
-			hit_point* HitPoint = LowEntity->HitPoint + HealthIndex;
+			hit_point* HitPoint = Entity->HitPoint + HealthIndex;
 			v4 Color = {1.0f, 0.0f, 0.0f, 1.0f};
 			if(HitPoint->FilledAmount == 0)
 			{
@@ -742,7 +367,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 	{
 		// Null Entity,
 		AddLowEntity (GameState, EntityType_None, 0);
-		GameState->HighEntityCount = 1;
 		GameState->Backdrop = DEBUGLoadBMP (Thread, Memory->DEBUGReadEntireFile, "test/test_background.bmp");
 		GameState->Shadow = DEBUGLoadBMP (Thread, Memory->DEBUGReadEntireFile, "test/test_hero_shadow.bmp");
 		GameState->Tree = DEBUGLoadBMP (Thread, Memory->DEBUGReadEntireFile, "test2/tree00.bmp");
@@ -927,7 +551,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
 		AddMonster(GameState, CameraTileX + 6, CameraTileY + 2, CameraTileZ);
 		AddFamiliar(GameState, CameraTileX - 6, CameraTileY + 2, CameraTileZ);
-		SetCamera(GameState, NewCameraP);
 		
 		Memory->IsInitialized = true;
 	}
@@ -938,115 +561,77 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 	for(int ControllerIndex = 0; ControllerIndex < ArrayCount(Input->Controllers); ControllerIndex++)
 	{
 		game_controller_input *Controller = GetController(Input, ControllerIndex);
-		uint32 LowIndex = GameState->PlayerControllerIndex[ControllerIndex];
-		if (LowIndex == 0)
+		controlled_hero* ControlledHero = GameState->ControlledHeros + ControllerIndex;
+		if (ControlledHero->EntityIndex == 0)
 		{
 			if(Controller->Start.EndedDown)
 			{
-				uint32 EntityIndex = AddPlayer(GameState).LowIndex;
-				GameState->PlayerControllerIndex[ControllerIndex] = EntityIndex;
+				*ControlledHero = {};
+				ControlledHero->EntityIndex = AddPlayer(GameState).LowIndex;
 			}
 		}
 		else
 		{
-			entity ControllingEntity = ForceEntityIntoHigh (GameState, LowIndex);
-			v2 ddPlayerP = {};
+			ControlledHero->ddPlayer = {};
 			if(Controller->IsAnalog)
 			{
 #if RAAVANAN_INTERNAL
 				GameState->ToneHz = 256 + (int)(128.0f * (Controller->StickAverageY));
 				GameState->YOffset += (int)(4.0f * (Controller->StickAverageX));
 #endif
-				ddPlayerP = v2 {Controller->StickAverageX, Controller->StickAverageY};
+				ControlledHero->ddPlayer = v2 {Controller->StickAverageX, Controller->StickAverageY};
 			}
 			else
 			{
 				if(Controller->MoveUp.EndedDown)
 				{
-					ddPlayerP.Y = 1.0f;
+					ControlledHero->ddPlayer.Y = 1.0f;
 				}
 				if(Controller->MoveDown.EndedDown)
 				{
-					ddPlayerP.Y = -1.0f;
+					ControlledHero->ddPlayer.Y = -1.0f;
 				}
 				if(Controller->MoveRight.EndedDown)
 				{
-					ddPlayerP.X = 1.0f;
+					ControlledHero->ddPlayer.X = 1.0f;
 				}
 				if(Controller->MoveLeft.EndedDown)
 				{
-					ddPlayerP.X = -1.0f;
+					ControlledHero->ddPlayer.X = -1.0f;
 				}
 			}
 			
 			if (Controller->Start.EndedDown)
 			{
-				ControllingEntity.High->dZ = 3.0f;
+				ControlledHero->dZ = 3.0f;
 			}
-			v2 dSword = {};
+			ControlledHero->dSword = {};
 			if(Controller->ActionUp.EndedDown)
 			{
-				dSword = V2(0.0f, 1.0f);
+				ControlledHero->dSword = V2(0.0f, 1.0f);
 			}
 			if(Controller->ActionDown.EndedDown)
 			{
-				dSword = V2(0.0f, -1.0f);
+				ControlledHero->dSword = V2(0.0f, -1.0f);
 			}
 			if(Controller->ActionLeft.EndedDown)
 			{
-				dSword = V2(-1.0f, 0.0f);
+				ControlledHero->dSword = V2(-1.0f, 0.0f);
 			}
 			if(Controller->ActionRight.EndedDown)
 			{
-				dSword = V2(1.0f, 0.0f);
-			}
-			move_spec MoveSpec = DefaultMoveSpec();
-			MoveSpec.UnitMaxAccelVector = true;
-			MoveSpec.Speed = 50.0f;
-			MoveSpec.Drag = 8.0f;
-			MoveEntity(GameState, ControllingEntity, Input->deltaTime, &MoveSpec, ddPlayerP);
-			if((dSword.X != 0) || (dSword.Y != 0))
-			{
-				low_entity* LowSword = GetLowEntity(GameState, ControllingEntity.Low->SwordLowIndex);
-				if(LowSword && !IsWorldPosValid(LowSword->Pos))
-				{
-					world_position SwordP = ControllingEntity.Low->Pos;
-					ChangeEntityLocation(&GameState->WorldArena, GameState->World, ControllingEntity.Low->SwordLowIndex, LowSword, 0, &SwordP);
-					entity Sword = ForceEntityIntoHigh(GameState, ControllingEntity.Low->SwordLowIndex);
-					Sword.Low->DistanceRemaining = 3.f;
-					Sword.High->dPlayerP = 5.0f * dSword;
-				}
+				ControlledHero->dSword = V2(1.0f, 0.0f);
 			}
 		}
 	}
-
-	entity CameraFollowingEntity = ForceEntityIntoHigh(GameState, GameState->CameraFollowingEntityIndex);
-	if(CameraFollowingEntity.High)
-	{
-		world_position NewCameraP = GameState->CameraP;
-		NewCameraP.ChunkZ = CameraFollowingEntity.Low->Pos.ChunkZ;
-#if 0
-		if (CameraFollowingEntity.High->Pos.X > (9.0f * World->TileSideInMeters))
-		{
-			NewCameraP.ChunkX += 17;
-		}
-		if (CameraFollowingEntity.High->Pos.X < -(9.0f * World->TileSideInMeters))
-		{
-			NewCameraP.ChunkX -= 17;
-		}
-		if (CameraFollowingEntity.High->Pos.Y > (5.0f * World->TileSideInMeters))
-		{
-			NewCameraP.ChunkY += 9;
-		}
-		if (CameraFollowingEntity.High->Pos.Y < -(5.0f * World->TileSideInMeters))
-		{
-			NewCameraP.ChunkY -= 9;
-		}
-#else
-	NewCameraP = CameraFollowingEntity.Low->Pos;
-#endif
-		SetCamera(GameState, NewCameraP);
-	}	
+	
+	uint32 TileSpanX = 17 * 3;
+	uint32 TileSpanY = 9 * 3;
+	rectangle2 CameraBounds = RectCenterDim(v2{0,0}, World->TileSideInMeters * v2 {(float)TileSpanX, (float)TileSpanY});
+	memory_arena SimArena;
+	InitializeArena(&SimArena, Memory->TransientStorageSize, Memory->TransientStorage);
+	sim_region* SimRegion = BeginSim(&SimArena, GameState, GameState->World, GameState->CameraP, CameraBounds);
+	
 #if 1
 	RenderRectangle(Buffer, V2(0.0f, 0.0f), V2((float)Buffer->Width, (float)Buffer->Height), 0.5f, 0.5f, 0.5f);
 #else
@@ -1055,58 +640,53 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
 	float ScreenCenterX = 0.5f * (float)Buffer->Width;
 	float ScreenCenterY = 0.5f * (float)Buffer->Height;
-#if 0
-	for (int32 Relrow = -10; Relrow < 10; ++Relrow)
-	{
-		for(int32 Relcol = - 20; Relcol < 20; ++Relcol)
-		{
-			uint32 Column = GameState->CameraP.AbsTileX + Relcol;
-			uint32 Row = GameState->CameraP.AbsTileY + Relrow;
-			uint32 TileID = GetTileValue(World, Column, Row, GameState->CameraP.AbsTileZ);
-			if(TileID > 1)
-			{
-				float ColorVal = ((TileID == 2) ? 1.0f : ((TileID > 2) ? 0.25f : 0.5f));
-				ColorVal = ((Column == GameState->CameraP.AbsTileX) && (Row == GameState->CameraP.AbsTileY)) ? 0.0f : ColorVal;
-
-				v2 TileSide = {0.5f * TileSideInPixels, 0.5f * TileSideInPixels};
-				v2 Center = {ScreenCenterX - MeterToPixels * GameState->CameraP.Offset.X + ((float)Relcol) * TileSideInPixels,
-								ScreenCenterY + MeterToPixels * GameState->CameraP.Offset.Y - ((float)Relrow) * TileSideInPixels};
-				v2 Min = Center - TileSide;
-				v2 Max = Center + TileSide;
-				RenderRectangle(Buffer, Min, Max, ColorVal, ColorVal, ColorVal);
-			}			
-		}
-	}
-#endif
-    //RenderGradiant(Buffer, GameState->XOffset, GameState->YOffset);
+	
 	entity_visible_piece_group PieceGroup;
 	PieceGroup.GameState = GameState;
-	for (uint32 HighEntityIndex = 1; HighEntityIndex < GameState->HighEntityCount; ++HighEntityIndex)
+	sim_entity* Entity = SimRegion->Entities;
+	for (uint32 EntityIndex = 0; EntityIndex < SimRegion->EntityCount; ++EntityIndex, ++Entity)
 	{
-		high_entity* HighEntity = GameState->HighEntities + HighEntityIndex;
-		low_entity* LowEntity = GameState->LowEntities + HighEntity->LowEntityIndex;
-
-		entity Entity;
-		Entity.LowIndex = HighEntity->LowEntityIndex;
-		Entity.Low = LowEntity;
-		Entity.High = HighEntity;
+		PieceGroup.PieceCount = 0;
 		float dt = Input->deltaTime;
 		
-		float ShadowAlpha = 1.0f - 0.5f * HighEntity->Z;
+		float ShadowAlpha = 1.0f - 0.5f * Entity->Z;
 		ShadowAlpha = (ShadowAlpha < 0.0f) ? 0.0f : ShadowAlpha;
 		
-		hero_bitmaps *HeroBitsmaps = &GameState->HeroBitmaps[HighEntity->FacingDirection];
-		PieceGroup.PieceCount = 0;
-		switch (LowEntity->Type)
+		hero_bitmaps *HeroBitsmaps = &GameState->HeroBitmaps[Entity->FacingDirection];
+		switch (Entity->Type)
 		{
 			case EntityType_Hero:
+			{
+				for(uint32 ControlIndex = 0; ControlIndex < ArrayCount(GameState->ControlledHeros); ++ControlIndex)
 				{
-					PushBitmap(&PieceGroup, &GameState->Shadow, V2(0,0), 0, HeroBitsmaps->Align, ShadowAlpha, 0.0f);
-					PushBitmap(&PieceGroup, &HeroBitsmaps->Torso, V2(0,0), 0, HeroBitsmaps->Align);
-					PushBitmap(&PieceGroup, &HeroBitsmaps->Cape, V2(0,0), 0, HeroBitsmaps->Align);
-					PushBitmap(&PieceGroup, &HeroBitsmaps->Head, V2(0,0), 0, HeroBitsmaps->Align);
-					DrawHitPoints (LowEntity, &PieceGroup);
+					controlled_hero* ConHero = GameState->ControlledHeros + ControlIndex;
+					if(Entity->StorageIndex == ConHero->EntityIndex)
+					{
+						Entity->dZ = ConHero->dZ;
+						move_spec MoveSpec = DefaultMoveSpec();
+						MoveSpec.UnitMaxAccelVector = true;
+						MoveSpec.Speed = 50.0f;
+						MoveSpec.Drag = 8.0f;
+						MoveEntity(SimRegion, Entity, Input->deltaTime, &MoveSpec, ConHero->ddPlayer);
+						if((ConHero->dSword.X != 0) || (ConHero->dSword.Y != 0))
+						{
+							sim_entity* Sword = Entity->Sword.Ptr;
+							if(Sword)
+							{
+								Sword->Pos = Entity->Pos;
+								Sword->DistanceRemaining = 3.f;
+								Sword->dPlayerP = 5.0f * ConHero->dSword;
+							}
+						}
+					}
 				}
+				
+				PushBitmap(&PieceGroup, &GameState->Shadow, V2(0,0), 0, HeroBitsmaps->Align, ShadowAlpha, 0.0f);
+				PushBitmap(&PieceGroup, &HeroBitsmaps->Torso, V2(0,0), 0, HeroBitsmaps->Align);
+				PushBitmap(&PieceGroup, &HeroBitsmaps->Cape, V2(0,0), 0, HeroBitsmaps->Align);
+				PushBitmap(&PieceGroup, &HeroBitsmaps->Head, V2(0,0), 0, HeroBitsmaps->Align);
+				DrawHitPoints (Entity, &PieceGroup);
+			}
 			break;
 			case EntityType_Wall:
 				{
@@ -1119,45 +699,45 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 			break;
 			case EntityType_Sword:
 				{
-					UpdateSword(GameState, Entity, dt);
+					UpdateSword(SimRegion, Entity, dt);
 					PushBitmap(&PieceGroup, &GameState->Shadow, V2(0,0), 0, HeroBitsmaps->Align, ShadowAlpha, 0.0f);
 					PushBitmap(&PieceGroup, &GameState->Sword, V2(0,0), 0, V2(30,10));
 				}
 			break;
 			case EntityType_Familiar:
 			{
-				UpdateFamiliar(GameState, Entity, dt);
-				Entity.High->tBob += dt;
-				if(Entity.High->tBob > (2.0f * PI))
-					Entity.High->tBob -= (float)(2.0f * PI);
-				float SinValue = Sin(2.0f * Entity.High->tBob);
+				UpdateFamiliar(SimRegion, Entity, dt);
+				Entity->tBob += dt;
+				if(Entity->tBob > (2.0f * PI))
+					Entity->tBob -= (float)(2.0f * PI);
+				float SinValue = Sin(2.0f * Entity->tBob);
 				PushBitmap(&PieceGroup, &GameState->Shadow, V2(0,0), 0, HeroBitsmaps->Align, SinValue * (0.5f * ShadowAlpha) - (0.2f * SinValue), 0.0f);
 				PushBitmap(&PieceGroup, &HeroBitsmaps->Head, V2(0,0), 1.0f * SinValue, HeroBitsmaps->Align);
 			}
 			break;
 			case EntityType_Monster:
 			{
-				UpdateMonster(GameState, Entity, dt);
+				UpdateMonster(SimRegion, Entity, dt);
 				PushBitmap(&PieceGroup, &GameState->Shadow, V2(0,0), 0, HeroBitsmaps->Align, ShadowAlpha, 0.0f);
 				PushBitmap(&PieceGroup, &HeroBitsmaps->Torso, V2(0,0), 0, HeroBitsmaps->Align);
-				DrawHitPoints (LowEntity, &PieceGroup);
+				DrawHitPoints (Entity, &PieceGroup);
 			}
 		}
 		
 		float ddZ = -9.8f;
-		HighEntity->Z += (0.5f * ddZ * Square(dt) + HighEntity->dZ * dt);
-		HighEntity->dZ = ddZ * dt + HighEntity->dZ;
-		if (HighEntity->Z < 0)
+		Entity->Z += (0.5f * ddZ * Square(dt) + Entity->dZ * dt);
+		Entity->dZ = ddZ * dt + Entity->dZ;
+		if (Entity->Z < 0)
 		{
-			HighEntity->Z = 0;
+			Entity->Z = 0;
 		}
 
-		float EntityGroundPointX = ScreenCenterX + MeterToPixels * HighEntity->Pos.X;
-		float EntityGroundPointY = ScreenCenterY - MeterToPixels * HighEntity->Pos.Y;
-		float EntityZ = -MeterToPixels * HighEntity->Z;
+		float EntityGroundPointX = ScreenCenterX + MeterToPixels * Entity->Pos.X;
+		float EntityGroundPointY = ScreenCenterY - MeterToPixels * Entity->Pos.Y;
+		float EntityZ = -MeterToPixels * Entity->Z;
 #if 0
-		v2 PlayerLeftTop = {EntityGroundPointX - 0.5f * MeterToPixels * LowEntity->Width, EntityGroundPointY - 0.5f * MeterToPixels * LowEntity->Height};
-		v2 EntiryWidthHeight = {LowEntity->Width, LowEntity->Height};
+		v2 PlayerLeftTop = {EntityGroundPointX - 0.5f * MeterToPixels * LowEntity->Sim.Width, EntityGroundPointY - 0.5f * MeterToPixels * LowEntity->Sim.Height};
+		v2 EntiryWidthHeight = {LowEntity->Sim.Width, LowEntity->Sim.Height};
 #endif
 		for(uint32 PieceIndex = 0; PieceIndex < PieceGroup.PieceCount; ++PieceIndex)
 		{
@@ -1175,6 +755,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 			}
 		}
 	}
+
+	EndSim(SimRegion, GameState);
 }
 
 extern "C" GET_GAME_SOUND_SAMPLES(GetGameSoundSamples)

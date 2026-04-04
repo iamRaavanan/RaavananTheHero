@@ -1,7 +1,7 @@
 @echo off
 
-set CommonCompileFlags=-MTd -nologo -GR- -EHa- -Od -Oi -WX -W4 -wd4201 -wd4100 -wd4505 -wd4189 -DRAAVANAN_INTERNAL=0 -DRAAVANAN_WIN32=1-FC -Z7
-set CommonLinkerFlags= -opt:ref user32.lib Gdi32.lib Winmm.lib
+set CommonCompileFlags=-MTd -nologo -fp:fast -Gm- -GR- -EHa- -Od -Oi -WX -W4 -wd4201 -wd4100 -wd4189 -wd4505 -wd4189 -DRAAVANAN_INTERNAL=0 -DRAAVANAN_WIN32=1-FC -Z7
+set CommonLinkerFlags= -incremental:no -opt:ref user32.lib gdi32.lib winmm.lib
 IF NOT EXIST ..\build mkdir ..\build
 pushd ..\..\build
 REM for 32 bit

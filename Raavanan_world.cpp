@@ -21,8 +21,9 @@ inline bool IsWorldPosValid (world_position P)
 
 inline bool IsCanonical(world* World, float TileRelative)
 {
-	bool Result = ((TileRelative >= -0.5f * World->ChunkSideInMeters) &&
-	(TileRelative <= 0.5f * World->ChunkSideInMeters));
+	float Epsilon = 0.0001f;
+	bool Result = ((TileRelative >= (-0.5f * World->ChunkSideInMeters + Epsilon)) &&
+	(TileRelative <= (0.5f * World->ChunkSideInMeters + Epsilon)));
 	return Result;
 }
 
