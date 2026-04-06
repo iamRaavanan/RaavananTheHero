@@ -22,8 +22,8 @@ inline bool IsWorldPosValid (world_position P)
 inline bool IsCanonical(world* World, float TileRelative)
 {
 	float Epsilon = 0.0001f;
-	bool Result = ((TileRelative >= (-0.5f * World->ChunkSideInMeters + Epsilon)) &&
-	(TileRelative <= (0.5f * World->ChunkSideInMeters + Epsilon)));
+	bool Result = ((TileRelative >= -(0.5f * World->ChunkSideInMeters + Epsilon)) &&
+					(TileRelative <= (0.5f * World->ChunkSideInMeters + Epsilon)));
 	return Result;
 }
 
@@ -113,6 +113,7 @@ inline world_position ChunkPositionFromTilePosition(world* World, int32 AbsTileX
 	
 	Result.Offset.X = ((AbsTileX - TILES_PER_CHUNK/2) - (Result.ChunkX * TILES_PER_CHUNK)) * World->TileSideInMeters;
 	Result.Offset.Y = ((AbsTileY - TILES_PER_CHUNK/2) - (Result.ChunkY * TILES_PER_CHUNK)) * World->TileSideInMeters;
+	Assert(IsCanonical(World, Result.Offset));
 	return Result;
 }
 
@@ -218,15 +219,27 @@ inline void ChangeEntityLocationRaw (memory_arena *Arena, world *World, uint32 L
 	}
 }
 
-inline void ChangeEntityLocation (memory_arena *Arena, world *World, uint32 LowEntityIndex, low_entity* LowEntity, world_position *OldP, world_position *NewP)
+inline void ChangeEntityLocation (memory_arena *Arena, world *World, uint32 LowEntityIndex, low_entity* LowEntity, world_position NewP)
 {
-	ChangeEntityLocationRaw(Arena, World, LowEntityIndex, OldP, NewP);
-	if(NewP)
+	world_position* OldPos = 0;
+	world_position* NewPos = 0;
+	if(!IsSet(&LowEntity->Sim, EntityFlag_NonSpatial) && IsWorldPosValid(LowEntity->Pos))
 	{
-		LowEntity->Pos = *NewP;
+		OldPos = &LowEntity->Pos;
+	} 
+	if(IsWorldPosValid(NewP))
+	{
+		NewPos = &NewP;
+	}
+	ChangeEntityLocationRaw(Arena, World, LowEntityIndex, OldPos, NewPos);
+	if(NewPos)
+	{
+		LowEntity->Pos = *NewPos;
+		ClearFlag(&LowEntity->Sim, EntityFlag_NonSpatial);
 	}
 	else
 	{
 		LowEntity->Pos = NullPosition();
+		AddFlag(&LowEntity->Sim, EntityFlag_NonSpatial);
 	}
 }

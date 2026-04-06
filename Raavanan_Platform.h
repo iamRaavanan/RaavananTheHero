@@ -42,7 +42,7 @@ typedef size_t memory_index;
 #define local_persist static
 #define global_variable static
 
-#define PI 3.14159265359
+#define PI 3.14159265359f
 
 #define Assert(Expression) if(!(Expression)) { *(int *) 0 = 0;}
 #define InvalidCodePath Assert(!"InvalidCodePath");
