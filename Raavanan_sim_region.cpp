@@ -121,9 +121,9 @@ internal sim_region* BeginSim(memory_arena* SimArena, game_state* GameState, wor
     world_position MinChunkP = MapIntoChunkSpace(World, SimRegion->Origin, GetMinCorner(SimRegion->Bounds));
 	world_position MaxChunkP = MapIntoChunkSpace(World, SimRegion->Origin, GetMaxCorner(SimRegion->Bounds));
 	
-	for(int32 ChunkY = MinChunkP.ChunkY; ChunkY < MaxChunkP.ChunkY; ++ChunkY)
+	for(int32 ChunkY = MinChunkP.ChunkY; ChunkY <= MaxChunkP.ChunkY; ++ChunkY)
 	{
-		for(int32 ChunkX = MinChunkP.ChunkX; ChunkX < MaxChunkP.ChunkX; ++ChunkX)
+		for(int32 ChunkX = MinChunkP.ChunkX; ChunkX <= MaxChunkP.ChunkX; ++ChunkX)
 		{
 			world_chunk* Chunk = GetWorldChunk(World, ChunkX, ChunkY, SimRegion->Origin.ChunkZ);
 			if(Chunk)
@@ -147,6 +147,7 @@ internal sim_region* BeginSim(memory_arena* SimArena, game_state* GameState, wor
 			}
 		}
 	}
+	uint32 SimregionCount = SimRegion->EntityCount;
     return SimRegion;
 }
 
