@@ -60,6 +60,7 @@ internal sim_entity* AddEntityRaw(game_state* GameState, sim_region* Region, uin
 		if(Region->EntityCount < Region->MaxEntityCount)
 		{
 			Entity = Region->Entities + Region->EntityCount++;
+			Assert((Entry->Index == 0) ||(Entry->Index == StorageIndex));
 			Entry->Index = StorageIndex;
 			Entry->Ptr = Entity;
 			
@@ -67,6 +68,8 @@ internal sim_entity* AddEntityRaw(game_state* GameState, sim_region* Region, uin
 			{
 				*Entity = Source->Sim;
 				LoadEntityReference(GameState, Region, &Entity->Sword);
+				Assert(!IsSet(&Source->Sim, EntityFlag_Simming));
+				AddFlag(&Source->Sim, EntityFlag_Simming);
 			}
 			Entity->StorageIndex = StorageIndex;
 		}
@@ -157,7 +160,9 @@ internal void EndSim(sim_region* Region, game_state* GameState)
     for(uint32 EntityIndex = 0; EntityIndex < Region->EntityCount; ++EntityIndex, ++Entity)
     {
         low_entity* Stored = GameState->LowEntities + Entity->StorageIndex;
+		Assert(IsSet(&Stored->Sim, EntityFlag_Simming));
         Stored->Sim = *Entity;
+		Assert(!IsSet(&Stored->Sim, EntityFlag_Simming));
         StoreEntityReference(&Stored->Sim.Sword);
 
 
