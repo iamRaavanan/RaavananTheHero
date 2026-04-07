@@ -5,9 +5,9 @@ inline void UpdateFamiliar(sim_region* Region, sim_entity* Entity, float dt)
 {
 	sim_entity* ClosestHero = 0;
 	float ClosestDstSq = Square(10.0f);
-	for(uint32 TestEntityIndex = 1; TestEntityIndex < Region->EntityCount; ++TestEntityIndex)
+	sim_entity* TestEntity = Region->Entities;
+	for(uint32 TestEntityIndex = 0; TestEntityIndex < Region->EntityCount; ++TestEntityIndex)
 	{
-		sim_entity* TestEntity = Region->Entities;
 		if(TestEntity->Type == EntityType_Hero)
 		{
 			float TestDstSq = LengthSq(TestEntity->Pos - Entity->Pos);
@@ -57,7 +57,7 @@ internal void UpdateSword(sim_region* Region, sim_entity* Entity, float dt)
 		MoveEntity(Region, Entity, dt, &MoveSpec, V2(0,0));
 		float DistanceTraveled = Length(Entity->Pos - OldP);
 		Entity->DistanceRemaining -= DistanceTraveled;
-		if(Entity->DistanceRemaining < 0)
+		if(Entity->DistanceRemaining < 0.0f)
 		{
 			MakeEntityNonSpatial(Entity);
 		}

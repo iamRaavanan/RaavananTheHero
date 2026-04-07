@@ -3,7 +3,8 @@
 #include "Raavanan_world.cpp"
 #include "Raavanan_sim_region.cpp"
 #include "Raavanan_entity.cpp"
-
+#include <stdio.h>
+#include <windows.h>
 internal void UpdateSound(game_state *GameState, game_sound_buffer *SoundBuffer, int ToneHz)
 {
 	int16 ToneVolume = 3000;
@@ -241,7 +242,7 @@ internal add_low_entity_result AddLowEntity(game_state* GameState, entity_type T
 
 internal void InitHitPoints(low_entity* LowEntity, uint32 Count)
 {
-	Assert(Count < ArrayCount(LowEntity->Sim.HitPoint));
+	Assert(Count <= ArrayCount(LowEntity->Sim.HitPoint));
 	LowEntity->Sim.HitPointMax = Count;
 	for(uint32 HitPointIndex = 0; HitPointIndex < LowEntity->Sim.HitPointMax; ++HitPointIndex)
 	{
@@ -554,7 +555,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 		{
 			int32 FamiliarOffsetX = (RandomNumberTable[RandomNumberIndex++] % 10) - 7;
 			int32 FamiliarOffsetY = (RandomNumberTable[RandomNumberIndex++] % 10) - 3;
-			if(FamiliarOffsetX || FamiliarOffsetY)
+			if((FamiliarOffsetX != 0) || (FamiliarOffsetY != 0))
 			{
 				AddFamiliar(GameState, CameraTileX + FamiliarOffsetX, CameraTileY + FamiliarOffsetY, CameraTileZ);
 			}
@@ -566,7 +567,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 	// Tile width and Height
 	float MeterToPixels = GameState->MetersToPixel;
 	
-	for(int ControllerIndex = 0; ControllerIndex < ArrayCount(Input->Controllers); ControllerIndex++)
+	for(int ControllerIndex = 0; ControllerIndex < ArrayCount(Input->Controllers); ++ControllerIndex)
 	{
 		game_controller_input *Controller = GetController(Input, ControllerIndex);
 		controlled_hero* ControlledHero = GameState->ControlledHeros + ControllerIndex;
@@ -654,6 +655,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 	entity_visible_piece_group PieceGroup;
 	PieceGroup.GameState = GameState;
 	sim_entity* Entity = SimRegion->Entities;
+	char TextBuffer[256];
+	sprintf_s(TextBuffer, "SimRegion->EntityCount:%d\n", SimRegion->EntityCount);
+	OutputDebugStringA(TextBuffer);
 	for (uint32 EntityIndex = 0; EntityIndex < SimRegion->EntityCount; ++EntityIndex, ++Entity)
 	{
 		PieceGroup.PieceCount = 0;

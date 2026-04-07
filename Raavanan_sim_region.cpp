@@ -9,7 +9,7 @@ internal sim_entity_hash* GetHashFromStorageIndex(sim_region* Region, uint32 Sto
     for(uint32 Offset = 0; Offset < ArrayCount(Region->Hash); ++Offset)
     {
 		uint32 HashMask = (ArrayCount(Region->Hash) - 1);
-		uint32 HashIndex = ((HashValue + Offset) & (HashMask));
+		uint32 HashIndex = ((HashValue + Offset) & HashMask);
         sim_entity_hash* Entry = Region->Hash + HashIndex;
         if(Entry->Index == 0 || (Entry->Index == StorageIndex))
         {
@@ -118,14 +118,14 @@ internal sim_region* BeginSim(memory_arena* SimArena, game_state* GameState, wor
     SimRegion->EntityCount = 0;
     SimRegion->Entities = PushArray(SimArena, SimRegion->MaxEntityCount, sim_entity);
 
-    world_position MinChunkP = MapIntoChunkSpace(GameState->World, SimRegion->Origin, GetMinCorner(SimRegion->Bounds));
-	world_position MaxChunkP = MapIntoChunkSpace(GameState->World, SimRegion->Origin, GetMaxCorner(SimRegion->Bounds));
+    world_position MinChunkP = MapIntoChunkSpace(World, SimRegion->Origin, GetMinCorner(SimRegion->Bounds));
+	world_position MaxChunkP = MapIntoChunkSpace(World, SimRegion->Origin, GetMaxCorner(SimRegion->Bounds));
 	
 	for(int32 ChunkY = MinChunkP.ChunkY; ChunkY < MaxChunkP.ChunkY; ++ChunkY)
 	{
 		for(int32 ChunkX = MinChunkP.ChunkX; ChunkX < MaxChunkP.ChunkX; ++ChunkX)
 		{
-			world_chunk* Chunk = GetWorldChunk(GameState->World, ChunkX, ChunkY, SimRegion->Origin.ChunkZ);
+			world_chunk* Chunk = GetWorldChunk(World, ChunkX, ChunkY, SimRegion->Origin.ChunkZ);
 			if(Chunk)
 			{
 				for(world_entity_block* Block = &Chunk->FirstBlock; Block; Block = Block->Next)
