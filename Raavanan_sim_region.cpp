@@ -72,6 +72,7 @@ internal sim_entity* AddEntityRaw(game_state* GameState, sim_region* Region, uin
 				AddFlag(&Source->Sim, EntityFlag_Simming);
 			}
 			Entity->StorageIndex = StorageIndex;
+			Entity->Updatable = false;
 		}
 		else
 		{
@@ -100,6 +101,7 @@ internal sim_entity* AddEntity(game_state* GameState, sim_region* Region, uint32
         if(SimPos)
         {
             Dest->Pos = *SimPos;
+			Dest->Updatable = IsInRectangle(Region->UpdatableBounds, Dest->Pos);
         }
         else
         {
