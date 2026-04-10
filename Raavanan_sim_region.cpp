@@ -27,6 +27,17 @@ internal sim_entity* GetStorageIndexToEntity(sim_region* Region, uint32 StorageI
     return Result;
 }
 
+inline v2 GetSimSpacePos (sim_region* Region, low_entity* StoredEntity)
+{
+	v2 Result = InvalidP;
+	if(!IsSet(&StoredEntity->Sim, EntityFlag_NonSpatial))
+	{
+		world_difference Diff = Subtract(Region->World, &StoredEntity->Pos, &Region->Origin);
+    	Result = Diff.dXY;
+	}
+    return Result;
+}
+
 internal sim_entity* AddEntity(game_state* GameState, sim_region* Region, uint32 StorageIndex, low_entity* Source, v2* SimPos);
 inline void LoadEntityReference(game_state* GameState, sim_region* Region, entity_reference* Ref)
 {
@@ -36,7 +47,9 @@ inline void LoadEntityReference(game_state* GameState, sim_region* Region, entit
         if(Entry->Ptr == 0)
         {
 			Entry->Index = Ref->Index;
-            Entry->Ptr = AddEntity(GameState, Region, Ref->Index, GetLowEntity(GameState, Ref->Index), 0);
+			low_entity* LowEntity = GetLowEntity(GameState, Ref->Index);
+			v2 SimP = GetSimSpacePos(Region, LowEntity);
+            Entry->Ptr = AddEntity(GameState, Region, Ref->Index, LowEntity, &SimP);
         }
         Ref->Ptr = Entry->Ptr;
     }
@@ -82,17 +95,6 @@ internal sim_entity* AddEntityRaw(game_state* GameState, sim_region* Region, uin
     return Entity;
 }
 
-inline v2 GetSimSpacePos (sim_region* Region, low_entity* StoredEntity)
-{
-	v2 Result = InvalidP;
-	if(!IsSet(&StoredEntity->Sim, EntityFlag_NonSpatial))
-	{
-		world_difference Diff = Subtract(Region->World, &StoredEntity->Pos, &Region->Origin);
-    	Result = Diff.dXY;
-	}
-    return Result;
-}
-
 internal sim_entity* AddEntity(game_state* GameState, sim_region* Region, uint32 StorageIndex, low_entity* Source, v2* SimPos)
 {
     sim_entity* Dest = AddEntityRaw(GameState, Region, StorageIndex, Source);
@@ -116,9 +118,11 @@ internal sim_region* BeginSim(memory_arena* SimArena, game_state* GameState, wor
     sim_region* SimRegion = PushStruct(SimArena, sim_region);
 	ZeroStruct(SimRegion->Hash);
 
+	float UpdateSafetyMargin = 1.0f;
     SimRegion->World = World;
     SimRegion->Origin = Origin;
-    SimRegion->Bounds = Bounds;
+	SimRegion->UpdatableBounds = Bounds;
+    SimRegion->Bounds = AddRadiusTo(Bounds, UpdateSafetyMargin, UpdateSafetyMargin);
     SimRegion->MaxEntityCount = 4096 ;
     SimRegion->EntityCount = 0;
     SimRegion->Entities = PushArray(SimArena, SimRegion->MaxEntityCount, sim_entity);
@@ -235,13 +239,20 @@ internal void MoveEntity (sim_region* Region, sim_entity* Entity, float deltaTim
 	}
 	
 	ddPlayer *= MoveSpec->Speed;
-
 	ddPlayer += -MoveSpec->Drag * Entity->dPlayerP;
 
 	v2 OldPlayerP = Entity->Pos;
 	v2 PlayerDelta = 0.5f * ddPlayer * Square(deltaTime) + Entity->dPlayerP * deltaTime;
 	Entity->dPlayerP = ddPlayer * deltaTime + Entity->dPlayerP;
 	v2 NewPlayerP = OldPlayerP + PlayerDelta;
+
+	float ddZ = -9.8f;
+	Entity->Z += (0.5f * ddZ * Square(deltaTime) + Entity->dZ * deltaTime);
+	Entity->dZ = ddZ * deltaTime + Entity->dZ;
+	if (Entity->Z < 0)
+	{
+		Entity->Z = 0;
+	}
 
 	for (uint32 Iteration = 0; Iteration < 4; ++Iteration)
 	{
