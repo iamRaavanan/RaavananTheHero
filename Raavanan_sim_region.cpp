@@ -225,6 +225,15 @@ internal bool TestWall (float WallX, float RelX, float RelY, float PlayerDeltaX,
 	return Hit;
 }
 
+internal void HandleCollision(sim_entity* A, sim_entity* B)
+{
+	if((A->Type == EntityType_Monster) && (B->Type == EntityType_Sword))
+	{
+		--A->HitPointMax;
+		MakeEntityNonSpatial(B);
+	}
+}
+
 internal void MoveEntity (sim_region* Region, sim_entity* Entity, float deltaTime, move_spec* MoveSpec, v2 ddPlayer)
 {
 	Assert(!IsSet(Entity, EntityFlag_NonSpatial));
@@ -272,7 +281,8 @@ internal void MoveEntity (sim_region* Region, sim_entity* Entity, float deltaTim
 			v2 WallNormal = {};
 			sim_entity* HitEntity = 0;
 			v2 DesiredPos = Entity->Pos + PlayerDelta;
-			if(IsSet(Entity, EntityFlag_Collides) && !IsSet(Entity, EntityFlag_NonSpatial))
+			bool StopsOnCollision = IsSet(Entity, EntityFlag_Collides);
+			if(!IsSet(Entity, EntityFlag_NonSpatial))
 			{
 				for (uint32 TestHighEntityIndex = 0; TestHighEntityIndex < Region->EntityCount; ++TestHighEntityIndex)
 				{
@@ -317,8 +327,20 @@ internal void MoveEntity (sim_region* Region, sim_entity* Entity, float deltaTim
 			if(HitEntity)
 			{
 				Entity->dPlayerP = Entity->dPlayerP - 1 * Dot(Entity->dPlayerP, WallNormal) * WallNormal;
-				PlayerDelta = DesiredPos - Entity->Pos;
-				PlayerDelta = PlayerDelta - 1 * Dot(PlayerDelta, WallNormal) * WallNormal;
+				if(StopsOnCollision)
+				{
+					PlayerDelta = DesiredPos - Entity->Pos;
+					PlayerDelta = PlayerDelta - 1 * Dot(PlayerDelta, WallNormal) * WallNormal;
+				}
+				sim_entity* A = Entity;
+				sim_entity* B = HitEntity;
+				if(A->Type > B->Type)
+				{
+					sim_entity* Temp = A;
+					B = A;
+					A = Temp;
+				}
+				HandleCollision(A, B);
 			}
 			else
 			{
