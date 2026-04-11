@@ -696,7 +696,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 								sim_entity* Sword = Entity->Sword.Ptr;
 								if(Sword && IsSet(Sword, EntityFlag_NonSpatial))
 								{
-									Sword->DistanceRemaining = 5.f;
+									Sword->DistanceLimit = 5.f;
 									MakeEntitySpatial(Sword, Entity->Pos, 5.0f * ConHero->dSword);
 								}
 							}
@@ -726,9 +726,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 						MoveSpec.Drag = 0.0f;
 						ddPlayer = V2(0,0);
 						v2 OldP = Entity->Pos;
-						float DistanceTraveled = Length(Entity->Pos - OldP);
-						Entity->DistanceRemaining -= DistanceTraveled;
-						if(Entity->DistanceRemaining < 0.0f)
+						if(Entity->DistanceLimit == 0.0f)
 						{
 							MakeEntityNonSpatial(Entity);
 						}

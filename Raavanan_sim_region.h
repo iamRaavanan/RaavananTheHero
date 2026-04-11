@@ -45,8 +45,8 @@ union entity_reference
 
 enum sim_entity_flags
 {
-	EntityFlag_Collides = (1 << 1),
-	EntityFlag_NonSpatial = (1 << 2),
+	EntityFlag_Collides = (1 << 0),
+	EntityFlag_NonSpatial = (1 << 1),
 
 	EntityFlag_Simming = (1 << 30),	
 };
@@ -81,7 +81,7 @@ struct sim_entity
 	hit_point HitPoint[16];
 
 	entity_reference Sword;
-	float DistanceRemaining;
+	float DistanceLimit;
 };
 
 struct stored_entity
