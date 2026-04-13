@@ -79,6 +79,15 @@ struct controlled_hero
 	float dZ;
 };
 
+struct pairwise_collision_rule
+{
+	bool ShouldCollide;
+	uint32 StorageIndexA;
+	uint32 StorageIndexB;
+
+	pairwise_collision_rule* NextInHash;
+};
+
 struct game_state
 {
 	world *World;
@@ -100,6 +109,10 @@ struct game_state
 
 	loaded_bitmap Tree;
 	loaded_bitmap Sword;
+	float MetersToPixels;
+
+	pairwise_collision_rule* CollisionRuleHash[256];
+	pairwise_collision_rule* FirstFreeCollisionRule;
 #if RAAVANAN_INTERNAL
 	int ToneHz;
 	int XOffset;
@@ -142,6 +155,7 @@ inline low_entity* GetLowEntity(game_state* GameState, uint32 Index)
 
 static void UpdateSound(game_state *GameState, game_sound_buffer *SoundBuffer);
 
-
+internal void ClearCollisionRule(game_state* GameState, uint32 StorageIndex);
+internal void AddCollisionRule (game_state* GameState, uint32 StorageIndexA, uint32 StorageIndexB, bool ShouldCollide);
 #define RAAVANAN_H
 #endif
