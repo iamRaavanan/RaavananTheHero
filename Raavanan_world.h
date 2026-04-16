@@ -1,11 +1,5 @@
 #ifndef RAAVANAN_WORLD_H
 
-struct world_difference
-{
-	v2 dXY;
-	float dZ;
-};
-
 struct world_position
 {
 	// Puzzler! How can we get rid of AbsTile* here, and still allow references to entities to be able to figure
@@ -15,7 +9,7 @@ struct world_position
 	int32 ChunkY;
 	int32 ChunkZ;
 	// Tile relative X & Y
-	v2 Offset;
+	v3 Offset;
 };
 
 struct world_entity_block
@@ -39,7 +33,8 @@ struct world_chunk
 struct world
 {
 	float TileSideInMeters;
-	float ChunkSideInMeters;
+	float TileDepthInMeters;
+	v3 ChunkDimInMeters;
 	world_entity_block* FirstFree;
 	world_chunk ChunkHash[4096];
 };

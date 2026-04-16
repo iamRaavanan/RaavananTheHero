@@ -29,18 +29,17 @@ internal sim_entity* GetStorageIndexToEntity(sim_region* Region, uint32 StorageI
     return Result;
 }
 
-inline v2 GetSimSpacePos (sim_region* Region, low_entity* StoredEntity)
+inline v3 GetSimSpacePos (sim_region* Region, low_entity* StoredEntity)
 {
-	v2 Result = InvalidP;
+	v3 Result = InvalidP;
 	if(!IsSet(&StoredEntity->Sim, EntityFlag_NonSpatial))
 	{
-		world_difference Diff = Subtract(Region->World, &StoredEntity->Pos, &Region->Origin);
-    	Result = Diff.dXY;
+		Result = Subtract(Region->World, &StoredEntity->Pos, &Region->Origin);
 	}
     return Result;
 }
 
-internal sim_entity* AddEntity(game_state* GameState, sim_region* Region, uint32 StorageIndex, low_entity* Source, v2* SimPos);
+internal sim_entity* AddEntity(game_state* GameState, sim_region* Region, uint32 StorageIndex, low_entity* Source, v3* SimPos);
 inline void LoadEntityReference(game_state* GameState, sim_region* Region, entity_reference* Ref)
 {
     if(Ref->Index)
@@ -50,7 +49,7 @@ inline void LoadEntityReference(game_state* GameState, sim_region* Region, entit
         {
 			Entry->Index = Ref->Index;
 			low_entity* LowEntity = GetLowEntity(GameState, Ref->Index);
-			v2 SimP = GetSimSpacePos(Region, LowEntity);
+			v3 SimP = GetSimSpacePos(Region, LowEntity);
             Entry->Ptr = AddEntity(GameState, Region, Ref->Index, LowEntity, &SimP);
         }
         Ref->Ptr = Entry->Ptr;
@@ -97,7 +96,7 @@ internal sim_entity* AddEntityRaw(game_state* GameState, sim_region* Region, uin
     return Entity;
 }
 
-internal sim_entity* AddEntity(game_state* GameState, sim_region* Region, uint32 StorageIndex, low_entity* Source, v2* SimPos)
+internal sim_entity* AddEntity(game_state* GameState, sim_region* Region, uint32 StorageIndex, low_entity* Source, v3* SimPos)
 {
     sim_entity* Dest = AddEntityRaw(GameState, Region, StorageIndex, Source);
     if(Dest)
@@ -115,16 +114,17 @@ internal sim_entity* AddEntity(game_state* GameState, sim_region* Region, uint32
     return Dest;
 }
 
-internal sim_region* BeginSim(memory_arena* SimArena, game_state* GameState, world* World, world_position Origin, rectangle2 Bounds)
+internal sim_region* BeginSim(memory_arena* SimArena, game_state* GameState, world* World, world_position Origin, rectangle3 Bounds)
 {
     sim_region* SimRegion = PushStruct(SimArena, sim_region);
 	ZeroStruct(SimRegion->Hash);
 
 	float UpdateSafetyMargin = 1.0f;
+	float UpdateSafetyMarginZ = 1.0f;
     SimRegion->World = World;
     SimRegion->Origin = Origin;
 	SimRegion->UpdatableBounds = Bounds;
-    SimRegion->Bounds = AddRadiusTo(Bounds, UpdateSafetyMargin, UpdateSafetyMargin);
+    SimRegion->Bounds = AddRadiusTo(Bounds, V3(UpdateSafetyMargin, UpdateSafetyMargin, UpdateSafetyMarginZ));
     SimRegion->MaxEntityCount = 4096 ;
     SimRegion->EntityCount = 0;
     SimRegion->Entities = PushArray(SimArena, SimRegion->MaxEntityCount, sim_entity);
@@ -147,7 +147,7 @@ internal sim_region* BeginSim(memory_arena* SimArena, game_state* GameState, wor
 						low_entity* Low = GameState->LowEntities + LowEntityIndex;
 						if(!IsSet(&Low->Sim, EntityFlag_NonSpatial))
 						{
-							v2 SimSpaceP = GetSimSpacePos(SimRegion, Low);
+							v3 SimSpaceP = GetSimSpacePos(SimRegion, Low);
 							if(IsInRectangle(SimRegion->Bounds  , SimSpaceP))
 							{
 								AddEntity(GameState, SimRegion, LowEntityIndex, Low, &SimSpaceP);
@@ -281,7 +281,7 @@ internal bool HandleCollision(sim_entity* A, sim_entity* B)
 	return StopsOnCollision;
 }
 
-internal void MoveEntity (game_state* GameState, sim_region* Region, sim_entity* Entity, float deltaTime, move_spec* MoveSpec, v2 ddPlayer)
+internal void MoveEntity (game_state* GameState, sim_region* Region, sim_entity* Entity, float deltaTime, move_spec* MoveSpec, v3 ddPlayer)
 {
 	Assert(!IsSet(Entity, EntityFlag_NonSpatial));
 	world* World = Region->World;
@@ -296,20 +296,12 @@ internal void MoveEntity (game_state* GameState, sim_region* Region, sim_entity*
 	
 	ddPlayer *= MoveSpec->Speed;
 	ddPlayer += -MoveSpec->Drag * Entity->dPlayerP;
-
-	v2 OldPlayerP = Entity->Pos;
-	v2 PlayerDelta = 0.5f * ddPlayer * Square(deltaTime) + Entity->dPlayerP * deltaTime;
+	ddPlayer += V3(0, 0, -9.8f);
+	v3 OldPlayerP = Entity->Pos;
+	v3 PlayerDelta = 0.5f * ddPlayer * Square(deltaTime) + Entity->dPlayerP * deltaTime;
 	Entity->dPlayerP = ddPlayer * deltaTime + Entity->dPlayerP;
-	v2 NewPlayerP = OldPlayerP + PlayerDelta;
+	v3 NewPlayerP = OldPlayerP + PlayerDelta;
 
-	float ddZ = -9.8f;
-	Entity->Z += (0.5f * ddZ * Square(deltaTime) + Entity->dZ * deltaTime);
-	Entity->dZ = ddZ * deltaTime + Entity->dZ;
-	if (Entity->Z < 0)
-	{
-		Entity->Z = 0;
-	}
-	
 	float DistanceRemaining = Entity->DistanceLimit;
 	if(DistanceRemaining == 0.0f)
 	{
@@ -325,9 +317,9 @@ internal void MoveEntity (game_state* GameState, sim_region* Region, sim_entity*
 			{
 				tMin = (DistanceRemaining / PlayerDeltaLength);
 			}
-			v2 WallNormal = {};
+			v3 WallNormal = {};
 			sim_entity* HitEntity = 0;
-			v2 DesiredPos = Entity->Pos + PlayerDelta;
+			v3 DesiredPos = Entity->Pos + PlayerDelta;
 			
 			if(!IsSet(Entity, EntityFlag_NonSpatial))
 			{
@@ -336,31 +328,30 @@ internal void MoveEntity (game_state* GameState, sim_region* Region, sim_entity*
 					sim_entity* TestEntity = Region->Entities + TestHighEntityIndex;
 					if(ShouldCollide(GameState, Entity, TestEntity))
 					{
-						float DiameterW = TestEntity->Width + Entity->Width;
-						float DiameterH = TestEntity->Height + Entity->Height;
-						v2 MinCorner = -0.5f * v2 {DiameterW, DiameterH};
-						v2 MaxCorner = 0.5f * v2 {DiameterW, DiameterH};
+						v3 MinkowskiDiameter = {TestEntity->Width + Entity->Width, TestEntity->Height + Entity->Height, 2.0f * World->TileDepthInMeters};
+						v3 MinCorner = -0.5f * MinkowskiDiameter;
+						v3 MaxCorner = 0.5f * MinkowskiDiameter;
 
-						v2 Rel = Entity->Pos - TestEntity->Pos;
+						v3 Rel = Entity->Pos - TestEntity->Pos;
 						
 						if(TestWall (MinCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y, &tMin, MinCorner.Y, MaxCorner.Y))
 						{
-							WallNormal = V2(-1,0);
+							WallNormal = V3(-1,0,0);
 							HitEntity = TestEntity;
 						}
 						if(TestWall (MaxCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y, &tMin, MinCorner.Y, MaxCorner.Y))
 						{
-							WallNormal = V2(1,0);
+							WallNormal = V3(1,0,0);
 							HitEntity = TestEntity;
 						}
 						if(TestWall (MinCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X, &tMin, MinCorner.X, MaxCorner.X))
 						{
-							WallNormal = V2(0,-1);
+							WallNormal = V3(0,-1,0);
 							HitEntity = TestEntity;
 						}
 						if(TestWall (MaxCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X, &tMin, MinCorner.X, MaxCorner.X))
 						{
-							WallNormal = V2(0,1);
+							WallNormal = V3(0,1,0);
 							HitEntity = TestEntity;
 						}
 					}		
@@ -392,7 +383,10 @@ internal void MoveEntity (game_state* GameState, sim_region* Region, sim_entity*
 			break;
 		}
 	}
-
+	if (Entity->Pos.Z < 0)
+	{
+		Entity->Pos.Z = 0;
+	}
 	if(Entity->DistanceLimit != 0.0f)
 	{
 		Entity->DistanceLimit = DistanceRemaining;

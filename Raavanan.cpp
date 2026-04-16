@@ -216,13 +216,6 @@ uint32 RedMask = Header->RedMask;
 }
 //#endif
 
-inline v2 GetCameraSpaceP(game_state* GameState, low_entity* EntityLow)
-{
-	world_difference Diff = Subtract(GameState->World, &EntityLow->Pos, &GameState->CameraP);
-	v2 Result = Diff.dXY;
-	return Result;
-}
-
 internal add_low_entity_result AddLowEntity(game_state* GameState, entity_type Type, world_position WorldPos)
 {
 	Assert (GameState->LowEntityCount < ArrayCount(GameState->LowEntities));
@@ -703,7 +696,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 	
 	uint32 TileSpanX = 17 * 3;
 	uint32 TileSpanY = 9 * 3;
-	rectangle2 CameraBounds = RectCenterDim(v2{0,0}, World->TileSideInMeters * V2 ((float)TileSpanX, (float)TileSpanY));
+	uint32 TileSpanZ = 1;
+	rectangle3 CameraBounds = RectCenterDim(V3(0,0,0), World->TileSideInMeters * V3 ((float)TileSpanX, (float)TileSpanY, (float)TileSpanZ));
 	memory_arena SimArena;
 	InitializeArena(&SimArena, Memory->TransientStorageSize, Memory->TransientStorage);
 	sim_region* SimRegion = BeginSim(&SimArena, GameState, GameState->World, GameState->CameraP, CameraBounds);
@@ -730,11 +724,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 			PieceGroup.PieceCount = 0;
 			float dt = Input->deltaTime;
 			
-			float ShadowAlpha = 1.0f - 0.5f * Entity->Z;
+			float ShadowAlpha = 1.0f - 0.5f * Entity->Pos.Z;
 			ShadowAlpha = (ShadowAlpha < 0.0f) ? 0.0f : ShadowAlpha;
 			
 			move_spec MoveSpec = DefaultMoveSpec(); 
-			v2 ddPlayer = {};
+			v3 ddPlayer = {};
 
 			hero_bitmaps *HeroBitsmaps = &GameState->HeroBitmaps[Entity->FacingDirection];
 			switch (Entity->Type)
@@ -748,13 +742,13 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 						{
 							if(ConHero->dZ != 0.0f)
 							{
-								Entity->dZ = ConHero->dZ;
+								Entity->dPlayerP.Z = ConHero->dZ;
 							}
 
 							MoveSpec.UnitMaxAccelVector = true;
 							MoveSpec.Speed = 50.0f;
 							MoveSpec.Drag = 8.0f;
-							ddPlayer = ConHero->ddPlayer;
+							ddPlayer = V3(ConHero->ddPlayer, 0.0f);
 							
 							if((ConHero->dSword.X != 0) || (ConHero->dSword.Y != 0))
 							{
@@ -762,7 +756,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 								if(Sword && IsSet(Sword, EntityFlag_NonSpatial))
 								{
 									Sword->DistanceLimit = 5.f;
-									MakeEntitySpatial(Sword, Entity->Pos, 5.0f * ConHero->dSword);
+									MakeEntitySpatial(Sword, Entity->Pos, 5.0f * V3(ConHero->dSword, 0.0f));
 									AddCollisionRule(GameState, Sword->StorageIndex, Entity->StorageIndex, false);
 								}
 							}
@@ -790,8 +784,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 						MoveSpec.UnitMaxAccelVector = false;
 						MoveSpec.Speed = 0.0f;
 						MoveSpec.Drag = 0.0f;
-						ddPlayer = V2(0,0);
-						v2 OldP = Entity->Pos;
+						ddPlayer = V3(0,0,0);
 						if(Entity->DistanceLimit == 0.0f)
 						{
 							ClearCollisionRule(GameState, Entity->StorageIndex);
@@ -811,10 +804,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 						if(TestEntity->Type == EntityType_Hero)
 						{
 							float TestDstSq = LengthSq(TestEntity->Pos - Entity->Pos);
-							if(TestEntity->Type == EntityType_Hero)
-							{
-								TestDstSq *= 0.75f;
-							}
 							if(ClosestDstSq > TestDstSq)
 							{
 								ClosestHero = TestEntity;
@@ -862,7 +851,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 			
 			float EntityGroundPointX = ScreenCenterX + MeterToPixels * Entity->Pos.X;
 			float EntityGroundPointY = ScreenCenterY - MeterToPixels * Entity->Pos.Y;
-			float EntityZ = -MeterToPixels * Entity->Z;
+			float EntityZ = -MeterToPixels * Entity->Pos.Z;
 	#if 0
 			v2 PlayerLeftTop = {EntityGroundPointX - 0.5f * MeterToPixels * LowEntity->Sim.Width, EntityGroundPointY - 0.5f * MeterToPixels * LowEntity->Sim.Height};
 			v2 EntiryWidthHeight = {LowEntity->Sim.Width, LowEntity->Sim.Height};

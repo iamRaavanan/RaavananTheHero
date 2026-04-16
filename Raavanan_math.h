@@ -19,6 +19,16 @@ union v3
     {
         float R, G, B;
     };
+    struct
+    {
+        v2 XY;
+        float Ignored0;
+    };
+    struct
+    {
+        float Ignored1;
+        v2 YZ;
+    };
     float E[3];
 };
 
@@ -33,6 +43,17 @@ union v4
         float R, G, B, A;
     };
     float E[4];
+};
+
+struct rectangle2
+{
+    v2 Min;
+    v2 Max;
+};
+struct rectangle3
+{
+    v3 Min;
+    v3 Max;
 };
 
 inline v2 V2(float X, float Y)
@@ -52,6 +73,15 @@ inline v3 V3(float X, float Y, float Z)
     return Result;
 }
 
+inline v3 V3(v2 XY, float Z)
+{
+    v3 Result;
+    Result.X = XY.X;
+    Result.Y = XY.Y;
+    Result.Z = Z;
+    return Result;
+}
+
 inline v4 V4(float X, float Y, float Z, float W)
 {
     v4 Result;
@@ -62,6 +92,19 @@ inline v4 V4(float X, float Y, float Z, float W)
     return Result;
 }
 
+//
+// Scalar Utility Function
+//
+
+inline float Square (float A)
+{
+    float Result = A * A;
+    return Result;
+}
+
+//
+// Vector2 Utility Function
+//
 inline v2 operator* (float A, v2 B)
 {
     v2 Result;
@@ -112,9 +155,9 @@ inline v2 operator- (v2 A, v2 B)
     return Result;
 }
 
-inline float Square (float A)
+inline v2 Hadamard(v2 A, v2 B)
 {
-    float Result = A * A;
+    v2 Result = {A.X * B.X, A.Y * B.Y};
     return Result;
 }
 
@@ -134,11 +177,90 @@ inline float Length(v2 A)
     float Result = SquareRoot(LengthSq(A));
     return Result;
 }
-struct rectangle2
+
+//
+// Vector3 Utility Function
+//
+
+inline v3 operator* (float A, v3 B)
 {
-    v2 Min;
-    v2 Max;
-};
+    v3 Result;
+    Result.X = A * B.X;
+    Result.Y = A * B.Y;
+    Result.Z = A * B.Z;
+    return Result;
+}
+
+inline v3 operator* (v3 A, float B)
+{
+    v3 Result = B * A;
+    return Result;
+}
+
+inline v3 &operator*=(v3 &B, float A)
+{
+    B = A * B;
+    return B;
+}
+
+inline v3 operator- (v3 A)
+{
+    v3 Result;
+    Result.X = -A.X;
+    Result.Y = -A.Y;
+    Result.Z = -A.Z;
+    return Result;
+}
+
+inline v3 operator+ (v3 A, v3 B)
+{
+    v3 Result;
+    Result.X = A.X + B.X;
+    Result.Y = A.Y + B.Y;
+    Result.Z = A.Z + B.Z;
+    return Result;
+}
+
+inline v3 &operator+=(v3 &A, v3 B)
+{
+    A = A + B;
+    return A;
+}
+
+inline v3 operator- (v3 A, v3 B)
+{
+    v3 Result;
+    Result.X = A.X - B.X;
+    Result.Y = A.Y - B.Y;
+    Result.Z = A.Z - B.Z;
+    return Result;
+}
+
+inline v3 Hadamard(v3 A, v3 B)
+{
+    v3 Result = {A.X * B.X, A.Y * B.Y, A.Z * B.Z};
+    return Result;
+}
+
+inline float Dot (v3 A, v3 B)
+{
+    float Result = A.X * B.X + A.Y * B.Y + A.Z * B.Z;
+    return Result;
+}
+
+inline float LengthSq(v3 A)
+{
+    float Result = Dot(A, A);
+    return Result;
+}
+inline float Length(v3 A)
+{
+    float Result = SquareRoot(LengthSq(A));
+    return Result;
+}
+//
+// Rectangle2 Utility Functions
+//
 
 inline v2 GetMinCorner(rectangle2 Rect)
 {
@@ -182,11 +304,11 @@ inline rectangle2 RectCenterHalfDim (v2 Center, v2 HalfDim)
     return Result;
 }
 
-inline rectangle2 AddRadiusTo(rectangle2 A, float RadiusW, float RadiusH)
+inline rectangle2 AddRadiusTo(rectangle2 A, v2 Radius)
 {
     rectangle2 Result;
-    Result.Min = A.Min + V2(RadiusW, RadiusH);
-    Result.Max = A.Max + V2(RadiusW, RadiusH);
+    Result.Min = A.Min + Radius;
+    Result.Max = A.Max + Radius;
     return Result;
 }
 
@@ -197,6 +319,73 @@ inline rectangle2 RectCenterDim (v2 Center, v2 Dim)
 }
 
 inline bool IsInRectangle (rectangle2 Rect, v2 Test)
+{
+    bool Result = ((Test.X >= Rect.Min.X) && (Test.Y >= Rect.Min.Y) &&
+                    (Test.X < Rect.Max.X) && (Test.Y < Rect.Max.Y));
+    return Result;
+}
+
+//
+// Rectangle3 Utility Functions
+//
+
+inline v3 GetMinCorner(rectangle3 Rect)
+{
+    v3 Result = Rect.Min;
+    return Result;
+}
+
+inline v3 GetMaxCorner(rectangle3 Rect)
+{
+    v3 Result = Rect.Max;
+    return Result;
+}
+
+inline v3 GetCenter(rectangle3 Rect)
+{
+    v3 Result = 0.5f * (Rect.Min + Rect.Max);
+    return Result;
+}
+
+inline rectangle3 RectMinMax (v3 Min, v3 Max)
+{
+    rectangle3 Result;
+    Result.Min = Min;
+    Result.Max = Max;
+    return Result;
+}
+
+inline rectangle3 RectMinDim (v3 Min, v3 Dim)
+{
+    rectangle3 Result;
+    Result.Min = Min;
+    Result.Max = Min + Dim;
+    return Result;
+}
+
+inline rectangle3 RectCenterHalfDim (v3 Center, v3 HalfDim)
+{
+    rectangle3 Result;
+    Result.Min = Center - HalfDim;
+    Result.Max = Center + HalfDim;
+    return Result;
+}
+
+inline rectangle3 AddRadiusTo(rectangle3 A, v3 Radius)
+{
+    rectangle3 Result;
+    Result.Min = A.Min + Radius;
+    Result.Max = A.Max + Radius;
+    return Result;
+}
+
+inline rectangle3 RectCenterDim (v3 Center, v3 Dim)
+{
+    rectangle3 Result = RectCenterHalfDim(Center, 0.5f * Dim);
+    return Result;
+}
+
+inline bool IsInRectangle (rectangle3 Rect, v3 Test)
 {
     bool Result = ((Test.X >= Rect.Min.X) && (Test.Y >= Rect.Min.Y) &&
                     (Test.X < Rect.Max.X) && (Test.Y < Rect.Max.Y));

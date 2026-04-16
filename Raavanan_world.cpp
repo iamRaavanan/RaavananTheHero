@@ -19,17 +19,19 @@ inline bool IsWorldPosValid (world_position P)
 	return Result;
 }
 
-inline bool IsCanonical(world* World, float TileRelative)
+inline bool IsCanonical(float ChunkDim, float TileRelative)
 {
 	float Epsilon = 0.0001f;
-	bool Result = ((TileRelative >= -(0.5f * World->ChunkSideInMeters + Epsilon)) &&
-					(TileRelative <= (0.5f * World->ChunkSideInMeters + Epsilon)));
+	bool Result = ((TileRelative >= -(0.5f * ChunkDim + Epsilon)) &&
+					(TileRelative <= (0.5f * ChunkDim + Epsilon)));
 	return Result;
 }
 
-inline bool IsCanonical(world* World, v2 Offset)
+inline bool IsCanonical(world* World, v3 Offset)
 {
-	bool Result = (IsCanonical(World, Offset.X) && IsCanonical(World, Offset.Y));
+	bool Result = (IsCanonical(World->ChunkDimInMeters.X, Offset.X) && 
+					IsCanonical(World->ChunkDimInMeters.Y, Offset.Y) &&
+					IsCanonical(World->ChunkDimInMeters.Z, Offset.Z));
 	return Result;
 }
 
@@ -81,50 +83,38 @@ inline world_chunk *GetWorldChunk (world *world, int32 ChunkX, int32 ChunkY, int
 	return Chunk;
 }
 
-inline void RecanonicalizeCoord (world *World, int32 *Tile, float *TileRelative)
+inline void RecanonicalizeCoord (float ChunkDim, int32 *Tile, float *TileRelative)
 {
-	int32 Offset = RoundFloatToInt32(*TileRelative / World->ChunkSideInMeters);
+	int32 Offset = RoundFloatToInt32(*TileRelative / ChunkDim);
 	*Tile += Offset;
-	*TileRelative -= Offset * World->ChunkSideInMeters;	
-	Assert(IsCanonical(World, *TileRelative));
+	*TileRelative -= Offset * ChunkDim;	
+	Assert(IsCanonical(ChunkDim, *TileRelative));
 }
 
-inline world_position MapIntoChunkSpace (world *world, world_position BasePosition, v2 Offset)
+inline world_position MapIntoChunkSpace (world *world, world_position BasePosition, v3 Offset)
 {
 	world_position Result = BasePosition;
 	Result.Offset += Offset;
-	RecanonicalizeCoord(world, &Result.ChunkX, &Result.Offset.X);
-	RecanonicalizeCoord(world, &Result.ChunkY, &Result.Offset.Y);
+	RecanonicalizeCoord(world->ChunkDimInMeters.X, &Result.ChunkX, &Result.Offset.X);
+	RecanonicalizeCoord(world->ChunkDimInMeters.Y, &Result.ChunkY, &Result.Offset.Y);
+	RecanonicalizeCoord(world->ChunkDimInMeters.Z, &Result.ChunkZ, &Result.Offset.Z);
 	return Result;
 }
 
 inline world_position ChunkPositionFromTilePosition(world* World, int32 AbsTileX, int32 AbsTileY, int32 AbsTileZ)
 {
-	world_position Result = {};
-	Result.ChunkX = AbsTileX / TILES_PER_CHUNK;
-	Result.ChunkY = AbsTileY / TILES_PER_CHUNK;
-	Result.ChunkZ = AbsTileZ / TILES_PER_CHUNK;
-	if(AbsTileX < 0)
-		--Result.ChunkX;
-	if(AbsTileY < 0)
-		--Result.ChunkY;
-	if(AbsTileZ < 0)
-		--Result.ChunkZ;
-	
-	Result.Offset.X = ((AbsTileX - TILES_PER_CHUNK/2) - (Result.ChunkX * TILES_PER_CHUNK)) * World->TileSideInMeters;
-	Result.Offset.Y = ((AbsTileY - TILES_PER_CHUNK/2) - (Result.ChunkY * TILES_PER_CHUNK)) * World->TileSideInMeters;
+	world_position BasePos = {};
+	v3 Offset = Hadamard(World->ChunkDimInMeters, V3((float)AbsTileX, (float)AbsTileY, (float)AbsTileZ));
+	world_position Result = MapIntoChunkSpace(World, BasePos, Offset);
 	Assert(IsCanonical(World, Result.Offset));
 	return Result;
 }
 
-inline world_difference Subtract (world *world, world_position *A, world_position *B)
+inline v3 Subtract (world *world, world_position *A, world_position *B)
 {
-	world_difference Result = {};
-	v2 dTile = {(float)A->ChunkX - (float)B->ChunkX, (float)A->ChunkY - (float)B->ChunkY};
-	float dTileZ = (float)A->ChunkZ - (float)B->ChunkZ;
+	v3 dTile = {(float)A->ChunkX - (float)B->ChunkX, (float)A->ChunkY - (float)B->ChunkY, (float)A->ChunkZ - (float)B->ChunkZ};
 
-	Result.dXY = world->ChunkSideInMeters * dTile + A->Offset - B->Offset;
-	Result.dZ = world->ChunkSideInMeters * dTileZ +  0.0f;
+	v3 Result = Hadamard(world->ChunkDimInMeters, dTile) + A->Offset - B->Offset;
 	return Result;
 }
 
@@ -140,7 +130,10 @@ inline world_position CenteredChunkPoint (uint32 AbsTileX, uint32 AbsTileY,uint3
 static void Initializeworld (world *World, float TileSideInMeteres)
 {
 	World->TileSideInMeters = TileSideInMeteres;
-	World->ChunkSideInMeters = (float)TILES_PER_CHUNK * TileSideInMeteres;
+	World->ChunkDimInMeters = {(float)TILES_PER_CHUNK * TileSideInMeteres,
+								(float)TILES_PER_CHUNK * TileSideInMeteres,
+								(float)TileSideInMeteres};
+	World->TileDepthInMeters = (float)TileSideInMeteres;
 	World->FirstFree = 0;
 	for (uint32 ChunkIndex = 0; ChunkIndex < ArrayCount(World->ChunkHash); ++ChunkIndex)
 	{

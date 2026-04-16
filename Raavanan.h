@@ -1,6 +1,46 @@
 #ifndef RAAVANAN_H
 #include "Raavanan_Platform.h"
 
+/*
+TODO:
+Architecture Exploration
+	- Collision detection
+		- Entry/Exit
+		- What's the plan for robustness / shape definition?
+	- Implement multiple sim regions per frame
+		- Per-entity clocking
+		- Sim Region merging? For Multiple player
+	- Z!
+		- Clean up things by using v3
+		-  Figure out how you go up and down and how is this rendered?
+	- Debug code
+		- Logging
+		- Programming
+		- (A LITTLE GUI, but only a little) Switches/Sliders
+	-Audio
+		- Sound effect triggers
+		- Ambient sounds
+		- Music
+	-MetaGame/ SaveGame
+		- How do you enter "Save Slot"?
+		-Persistent Unlock.
+		- Do we allow saved games? Just only for pausing,
+		- Continuous save for crash recovery
+	- Rudimentary world gen(No Quality, just what sort of things we do)
+		- Placement of background things
+		- Connectivity?
+		- Non Overlapping?
+		- Map display
+			- Magnets - how they work?
+	-AI
+		- Rudimentary monstar behavior example
+		- Pathfinding
+		- AI Storage
+	- Animation, should probably lead into rendering
+		- Skeletal Animation
+		- Particle System
+			
+*/
 #define Minimum(A, B) ((A < B) ? (A) : (B))
 #define Maximum(A, B) ((A > B) ? (A) : (B))
 
