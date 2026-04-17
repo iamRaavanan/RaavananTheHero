@@ -55,7 +55,7 @@ struct sim_entity
 
     uint32 ChunkZ;
 	
-	float Height, Width;
+	v3 Dim;
 	
     uint32 FacingDirection;
     float tBob;
@@ -86,6 +86,9 @@ struct sim_entity_hash
 struct sim_region
 {
     world* World;
+	float MaxEntityRadius;
+	float MaxEntityVelocity;
+
     world_position Origin;
     rectangle3 Bounds;
 	rectangle3 UpdatableBounds;

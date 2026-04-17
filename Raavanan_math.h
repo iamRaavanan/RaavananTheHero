@@ -73,6 +73,13 @@ inline v3 V3(float X, float Y, float Z)
     return Result;
 }
 
+inline v3 V3(float XYZ)
+{
+    v3 Result;
+    Result.X = Result.Y = Result.Z = XYZ;
+    return Result;
+}
+
 inline v3 V3(v2 XY, float Z)
 {
     v3 Result;
