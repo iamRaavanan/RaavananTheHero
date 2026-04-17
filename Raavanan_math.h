@@ -307,7 +307,7 @@ inline rectangle2 RectCenterHalfDim (v2 Center, v2 HalfDim)
 inline rectangle2 AddRadiusTo(rectangle2 A, v2 Radius)
 {
     rectangle2 Result;
-    Result.Min = A.Min + Radius;
+    Result.Min = A.Min - Radius;
     Result.Max = A.Max + Radius;
     return Result;
 }
@@ -374,7 +374,7 @@ inline rectangle3 RectCenterHalfDim (v3 Center, v3 HalfDim)
 inline rectangle3 AddRadiusTo(rectangle3 A, v3 Radius)
 {
     rectangle3 Result;
-    Result.Min = A.Min + Radius;
+    Result.Min = A.Min - Radius;
     Result.Max = A.Max + Radius;
     return Result;
 }
@@ -387,8 +387,8 @@ inline rectangle3 RectCenterDim (v3 Center, v3 Dim)
 
 inline bool IsInRectangle (rectangle3 Rect, v3 Test)
 {
-    bool Result = ((Test.X >= Rect.Min.X) && (Test.Y >= Rect.Min.Y) &&
-                    (Test.X < Rect.Max.X) && (Test.Y < Rect.Max.Y));
+    bool Result = ((Test.X >= Rect.Min.X) && (Test.Y >= Rect.Min.Y) && (Test.Z >= Rect.Min.Z) &&
+                    (Test.X < Rect.Max.X) && (Test.Y < Rect.Max.Y) && (Test.Z < Rect.Max.Z));
     return Result;
 }
 #define RAAVANAN_MATH_H

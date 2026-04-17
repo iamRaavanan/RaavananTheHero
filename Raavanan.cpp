@@ -784,7 +784,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 						MoveSpec.UnitMaxAccelVector = false;
 						MoveSpec.Speed = 0.0f;
 						MoveSpec.Drag = 0.0f;
-						ddPlayer = V3(0,0,0);
 						if(Entity->DistanceLimit == 0.0f)
 						{
 							ClearCollisionRule(GameState, Entity->StorageIndex);
