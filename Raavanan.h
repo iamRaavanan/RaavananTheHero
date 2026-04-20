@@ -119,6 +119,12 @@ struct controlled_hero
 	float dZ;
 };
 
+enum pairwise_collision_rule_flag
+{
+	PairCollisionFlag_ShouldCollide = 0x1,
+	PairCollisionFlag_Temporary = 0x2,
+};
+
 struct pairwise_collision_rule
 {
 	bool ShouldCollide;
@@ -149,6 +155,7 @@ struct game_state
 
 	loaded_bitmap Tree;
 	loaded_bitmap Sword;
+	loaded_bitmap Stairwell;
 	float MetersToPixels;
 
 	pairwise_collision_rule* CollisionRuleHash[256];
@@ -195,7 +202,7 @@ inline low_entity* GetLowEntity(game_state* GameState, uint32 Index)
 
 static void UpdateSound(game_state *GameState, game_sound_buffer *SoundBuffer);
 
+internal void AddCollisionRule (game_state* GameState, uint32 StorageIndexA, uint32 StorageIndexB, bool ShouldCollide/*pairwise_collision_rule_flag Flag*/);
 internal void ClearCollisionRule(game_state* GameState, uint32 StorageIndex);
-internal void AddCollisionRule (game_state* GameState, uint32 StorageIndexA, uint32 StorageIndexB, bool ShouldCollide);
 #define RAAVANAN_H
 #endif

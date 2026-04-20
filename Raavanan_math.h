@@ -398,5 +398,14 @@ inline bool IsInRectangle (rectangle3 Rect, v3 Test)
                     (Test.X < Rect.Max.X) && (Test.Y < Rect.Max.Y) && (Test.Z < Rect.Max.Z));
     return Result;
 }
+
+internal bool RectangleIntersect(rectangle3 A, rectangle3 B)
+{
+	bool Result = !(B.Max.X < A.Min.X || B.Min.X > A.Max.X ||
+                    B.Max.Y < A.Min.Y || B.Min.Y > A.Max.Y ||
+                    B.Max.Z < A.Min.Z || B.Min.Z > A.Max.Z);
+	return Result;
+}
+
 #define RAAVANAN_MATH_H
 #endif

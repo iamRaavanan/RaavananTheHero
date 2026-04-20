@@ -267,11 +267,12 @@ internal bool ShouldCollide (game_state* GameState, sim_entity* A, sim_entity* B
 	return Result;
 }
 
-internal bool HandleCollision(sim_entity* A, sim_entity* B)
+internal bool HandleCollision(game_state* GameState, sim_entity* A, sim_entity* B, bool WasOverlapping)
 {
 	bool StopsOnCollision = false;
 	if(A->Type == EntityType_Sword)
 	{
+		AddCollisionRule(GameState, A->StorageIndex, B->StorageIndex, false);
 		StopsOnCollision = false;
 	}
 	else
@@ -288,6 +289,10 @@ internal bool HandleCollision(sim_entity* A, sim_entity* B)
 	{
 		if(A->HitPointMax > 0)
 			--A->HitPointMax;
+	}
+	if(A->Type == EntityType_Hero && B->Type == EntityType_Stairwell)
+	{
+		StopsOnCollision = false;
 	}
 	return StopsOnCollision;
 }
@@ -320,6 +325,33 @@ internal void MoveEntity (game_state* GameState, sim_region* Region, sim_entity*
 	{
 		DistanceRemaining = 1000.0f;
 	}
+
+	uint32 OverlappingCount = 0;
+	sim_entity* OverlappingEntities[16];
+	{
+		rectangle3 EntityRect = RectCenterDim(Entity->Pos, Entity->Dim);
+		for (uint32 TestHighEntityIndex = 0; TestHighEntityIndex < Region->EntityCount; ++TestHighEntityIndex)
+		{
+			sim_entity* TestEntity = Region->Entities + TestHighEntityIndex;
+			if(ShouldCollide(GameState, Entity, TestEntity))
+			{
+				rectangle3 TestEntityRect = RectCenterDim(TestEntity->Pos, TestEntity->Dim);
+				if(RectangleIntersect(EntityRect, TestEntityRect))
+				{
+					if(OverlappingCount < ArrayCount(OverlappingEntities))
+					{
+						// if(AddCollisionRule(GameState, Entity->StorageIndex, TestEntity->StorageIndex, false))
+						OverlappingEntities[OverlappingCount++] = TestEntity;
+					}
+					else
+					{
+						InvalidCodePath;
+					}
+				}
+			}
+		}
+	}
+
 	for (uint32 Iteration = 0; Iteration < 4; ++Iteration)
 	{
 		float tMin = 1.0f;
@@ -375,7 +407,18 @@ internal void MoveEntity (game_state* GameState, sim_region* Region, sim_entity*
 			if(HitEntity)
 			{
 				PlayerDelta = DesiredPos - Entity->Pos;				
-				bool StopsOnCollision = HandleCollision(Entity, HitEntity);	
+				uint32 OverlapIndex = OverlappingCount;
+				for (uint32 TestOverlapIndex = 0;  TestOverlapIndex < OverlappingCount; ++TestOverlapIndex)
+				{
+					if(HitEntity == OverlappingEntities[TestOverlapIndex])
+					{
+						OverlapIndex = TestOverlapIndex;
+						break;
+					}
+				}
+				bool WasOverlapping = (OverlapIndex != OverlappingCount);
+				bool StopsOnCollision = HandleCollision(GameState, Entity, HitEntity, WasOverlapping);
+
 				if(StopsOnCollision)
 				{
 					PlayerDelta = PlayerDelta - 1 * Dot(PlayerDelta, WallNormal) * WallNormal;
@@ -383,7 +426,18 @@ internal void MoveEntity (game_state* GameState, sim_region* Region, sim_entity*
 				}
 				else
 				{
-					AddCollisionRule(GameState, Entity->StorageIndex, HitEntity->StorageIndex, false);
+					if(WasOverlapping)
+					{
+						OverlappingEntities[OverlapIndex] = OverlappingEntities[--OverlappingCount];
+					}
+					else if (OverlappingCount < ArrayCount(OverlappingEntities))
+					{
+						OverlappingEntities[OverlappingCount++] = HitEntity;
+					}
+					else
+					{
+						InvalidCodePath;
+					}
 				}
 			}
 			else

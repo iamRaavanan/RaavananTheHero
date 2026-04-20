@@ -282,6 +282,17 @@ internal add_low_entity_result AddMonster(game_state* GameState, uint32 AbsTileX
 	return Entity;
 }
 
+internal add_low_entity_result AddStairWell(game_state* GameState, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ)
+{
+	world_position WorldPos = ChunkPositionFromTilePosition(GameState->World, AbsTileX, AbsTileY, AbsTileZ);
+	add_low_entity_result Entity = AddLowEntity(GameState, EntityType_Stairwell, WorldPos);
+	Entity.Low->Sim.Dim.Y = GameState->World->TileSideInMeters;
+	Entity.Low->Sim.Dim.X = Entity.Low->Sim.Dim.Y;
+	Entity.Low->Sim.Dim.Z = GameState->World->TileDepthInMeters;
+	AddFlag (&Entity.Low->Sim, EntityFlag_Collides);
+	return Entity;
+}
+
 internal add_low_entity_result AddFamiliar(game_state* GameState, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ)
 {
 	world_position WorldPos = ChunkPositionFromTilePosition(GameState->World, AbsTileX, AbsTileY, AbsTileZ);
@@ -430,6 +441,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 		GameState->Shadow = DEBUGLoadBMP (Thread, Memory->DEBUGReadEntireFile, "test/test_hero_shadow.bmp");
 		GameState->Tree = DEBUGLoadBMP (Thread, Memory->DEBUGReadEntireFile, "test2/tree00.bmp");
 		GameState->Sword = DEBUGLoadBMP (Thread, Memory->DEBUGReadEntireFile, "test2/rock03.bmp");
+		GameState->Stairwell = DEBUGLoadBMP(Thread, Memory->DEBUGReadEntireFile, "test2/rock02.bmp");
 		hero_bitmaps *Bitmap = GameState->HeroBitmaps;
 		Bitmap->Head = DEBUGLoadBMP(Thread, Memory->DEBUGReadEntireFile, "test/test_hero_right_head.bmp");
 		Bitmap->Cape = DEBUGLoadBMP(Thread, Memory->DEBUGReadEntireFile, "test/test_hero_right_cape.bmp");
@@ -480,7 +492,15 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 		for (uint32 ScreenIndex = 0; ScreenIndex < 2000; ++ScreenIndex)
 		{
 			Assert(RandomNumberIndex < ArrayCount(RandomNumberTable));
-			uint32 RandomChoice = (RandomNumberTable[RandomNumberIndex++] % 2/*((DoorUp || DoorDown) ? 2 : 3)*/);
+			uint32 RandomChoice;
+			if(DoorUp || DoorDown)
+            {
+                RandomChoice = RandomNumberTable[RandomNumberIndex++] % 2;
+            }
+            else
+            {
+                RandomChoice = RandomNumberTable[RandomNumberIndex++] % 3;
+            }
 			bool CreatedZDoor = false;
 			if(RandomChoice == 2)
 			{
@@ -510,37 +530,33 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 				{
 					uint32 AbsTileX = ScreenX * TilesPerWidth + TileX;
 					uint32 AbsTileY = ScreenY * TilesPerHeight + TileY;					
-					uint32 TileValue = 1;
+					bool ShouldBeDoor = false;
 					if((TileX == 0) && (!DoorLeft || (TileY != (TilesPerHeight/2))))
 					{
-						TileValue = 2;
+						ShouldBeDoor = true;
 					}
 					if((TileX == (TilesPerWidth - 1)) && (!DoorRight || (TileY != (TilesPerHeight/2))))
 					{
-						TileValue = 2;
+						ShouldBeDoor = true;
 					}
 					if((TileY == 0) && (!DoorBottom || (TileX != (TilesPerWidth/2))))
 					{
-						TileValue = 2;
+						ShouldBeDoor = true;
 					}
 					if((TileY == (TilesPerHeight - 1)) && (!DoorTop || (TileX != (TilesPerWidth/2))))
 					{
-						TileValue = 2;
+						ShouldBeDoor = true;
 					}
-					if((TileX == 10) && (TileY == 6))
-					{
-						if(DoorUp)
-						{
-							TileValue = 3;
-						}
-						if(DoorDown)
-						{
-							TileValue = 4;
-						}
-					}
-					if (TileValue == 2)
+					if(ShouldBeDoor)
 					{
 						AddWall (GameState, AbsTileX, AbsTileY, AbsTileZ);
+					}
+					else if (CreatedZDoor)
+					{
+						if((TileX == 10) && (TileY == 6))
+						{
+							AddStairWell (GameState, AbsTileX, AbsTileY, DoorDown ? AbsTileZ -1 : AbsTileZ);
+						}
 					}
 				}
 			}
@@ -608,7 +624,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 		uint32 CameraTileZ = ScreenBaseZ;
 		NewCameraP = ChunkPositionFromTilePosition(GameState->World, CameraTileX , CameraTileY, CameraTileZ);
 		GameState->CameraP = NewCameraP;
-		AddMonster(GameState, CameraTileX + 2, CameraTileY + 2, CameraTileZ);
+		AddMonster(GameState, CameraTileX - 2, CameraTileY + 2, CameraTileZ);
 		for(int FamiliarIndex = 0; FamiliarIndex < 1; ++FamiliarIndex)
 		{
 			int32 FamiliarOffsetX = (RandomNumberTable[RandomNumberIndex++] % 10) - 7;
@@ -792,6 +808,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 						PushBitmap(&PieceGroup, &GameState->Shadow, V2(0,0), 0, HeroBitsmaps->Align, ShadowAlpha, 0.0f);
 						PushBitmap(&PieceGroup, &GameState->Sword, V2(0,0), 0, V2(30,10));
 					}
+				break;
+				case EntityType_Stairwell:
+				{
+						PushBitmap(&PieceGroup, &GameState->Stairwell, V2(0,0), 0, V2(37,37));
+				}
 				break;
 				case EntityType_Familiar:
 				{
