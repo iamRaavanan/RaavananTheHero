@@ -119,15 +119,9 @@ struct controlled_hero
 	float dZ;
 };
 
-enum pairwise_collision_rule_flag
-{
-	PairCollisionFlag_ShouldCollide = 0x1,
-	PairCollisionFlag_Temporary = 0x2,
-};
-
 struct pairwise_collision_rule
 {
-	bool ShouldCollide;
+	bool CanCollide;
 	uint32 StorageIndexA;
 	uint32 StorageIndexB;
 

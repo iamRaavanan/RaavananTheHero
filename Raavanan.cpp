@@ -250,6 +250,7 @@ internal add_low_entity_result AddSword(game_state* GameState)
 	add_low_entity_result Entity = AddLowEntity(GameState, EntityType_Sword, NullPosition());
 	Entity.Low->Sim.Dim.Y = 0.5f;
 	Entity.Low->Sim.Dim.X = 1.0f;
+	AddFlags (&Entity.Low->Sim, EntityFlag_Movable);
 	return Entity;
 }
 
@@ -259,7 +260,7 @@ internal add_low_entity_result AddPlayer (game_state* GameState)
 	add_low_entity_result Entity = AddLowEntity(GameState, EntityType_Hero, WorldPos);
 	Entity.Low->Sim.Dim.Y = 0.5f;
 	Entity.Low->Sim.Dim.X = 1.0f;
-	AddFlag (&Entity.Low->Sim, EntityFlag_Collides);
+	AddFlags (&Entity.Low->Sim, EntityFlag_Collides | EntityFlag_Movable);
 	InitHitPoints(Entity.Low, 3);
 
 	add_low_entity_result Sword = AddSword(GameState);
@@ -277,19 +278,19 @@ internal add_low_entity_result AddMonster(game_state* GameState, uint32 AbsTileX
 	add_low_entity_result Entity = AddLowEntity(GameState, EntityType_Monster, WorldPos);
 	Entity.Low->Sim.Dim.Y = 0.5f;
 	Entity.Low->Sim.Dim.X = 1.0f;
-	AddFlag (&Entity.Low->Sim, EntityFlag_Collides);
+	AddFlags (&Entity.Low->Sim, EntityFlag_Collides|EntityFlag_Movable);
 	InitHitPoints(Entity.Low, 3);
 	return Entity;
 }
 
 internal add_low_entity_result AddStairWell(game_state* GameState, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ)
 {
-	world_position WorldPos = ChunkPositionFromTilePosition(GameState->World, AbsTileX, AbsTileY, AbsTileZ);
+	world_position WorldPos = ChunkPositionFromTilePosition(GameState->World, AbsTileX, AbsTileY, AbsTileZ, V3(0,0,0.5f*GameState->World->TileDepthInMeters));
 	add_low_entity_result Entity = AddLowEntity(GameState, EntityType_Stairwell, WorldPos);
 	Entity.Low->Sim.Dim.Y = GameState->World->TileSideInMeters;
 	Entity.Low->Sim.Dim.X = Entity.Low->Sim.Dim.Y;
-	Entity.Low->Sim.Dim.Z = GameState->World->TileDepthInMeters;
-	AddFlag (&Entity.Low->Sim, EntityFlag_Collides);
+	Entity.Low->Sim.Dim.Z = 1.2f * GameState->World->TileDepthInMeters;
+	AddFlags (&Entity.Low->Sim, EntityFlag_Collides);
 	return Entity;
 }
 
@@ -299,7 +300,7 @@ internal add_low_entity_result AddFamiliar(game_state* GameState, uint32 AbsTile
 	add_low_entity_result Entity = AddLowEntity(GameState, EntityType_Familiar, WorldPos);
 	Entity.Low->Sim.Dim.Y = 0.5f;
 	Entity.Low->Sim.Dim.X = 1.0f;
-	AddFlag (&Entity.Low->Sim, EntityFlag_Collides);
+	AddFlags (&Entity.Low->Sim, EntityFlag_Collides/* | EntityFlag_Movable*/);
 	return Entity;
 }
 
@@ -310,7 +311,7 @@ internal add_low_entity_result AddWall (game_state* GameState, uint32 AbsTileX, 
 	
 	Entity.Low->Sim.Dim.Y = GameState->World->TileSideInMeters;
 	Entity.Low->Sim.Dim.X = Entity.Low->Sim.Dim.Y;
-	AddFlag(&Entity.Low->Sim, EntityFlag_Collides);
+	AddFlags(&Entity.Low->Sim, EntityFlag_Collides);
 	
 	return Entity;
 }
@@ -385,7 +386,7 @@ internal void ClearCollisionRule(game_state* GameState, uint32 StorageIndex)
 	}
 }
 
-internal void AddCollisionRule (game_state* GameState, uint32 StorageIndexA, uint32 StorageIndexB, bool ShouldCollide)
+internal void AddCollisionRule (game_state* GameState, uint32 StorageIndexA, uint32 StorageIndexB, bool CanCollide)
 {
 	if(StorageIndexA > StorageIndexB)
 	{
@@ -423,7 +424,7 @@ internal void AddCollisionRule (game_state* GameState, uint32 StorageIndexA, uin
 	{
 		Found->StorageIndexA = StorageIndexA;
 		Found->StorageIndexB = StorageIndexB;
-		Found->ShouldCollide = ShouldCollide;
+		Found->CanCollide = CanCollide;
 	}
 }
 
@@ -811,7 +812,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 				break;
 				case EntityType_Stairwell:
 				{
-						PushBitmap(&PieceGroup, &GameState->Stairwell, V2(0,0), 0, V2(37,37));
+					PushRect(&PieceGroup, V2(0,0), 0, Entity->Dim.XY, V4(1,1,0,1));
 				}
 				break;
 				case EntityType_Familiar:
@@ -864,7 +865,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 				}
 				break;
 			}
-			if(!IsSet(Entity, EntityFlag_NonSpatial))
+			if(!IsSet(Entity, EntityFlag_NonSpatial) && IsSet(Entity, EntityFlag_Movable))
 			{
 				MoveEntity(GameState, SimRegion, Entity, Input->deltaTime, &MoveSpec, ddPlayer);
 			}

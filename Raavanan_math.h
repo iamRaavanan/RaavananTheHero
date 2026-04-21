@@ -109,6 +109,32 @@ inline float Square (float A)
     return Result;
 }
 
+inline float Lerp(float A, float t, float B)
+{
+    float Result = (1.0f - t) * A + t * B;
+    return Result;
+}
+
+inline float Clamp(float Min, float Value, float Max)
+{
+    float Result = Value;
+    if(Result < Min)
+    {
+        Result = Min;
+    }
+    else if (Result > Max)
+    {
+        Result = Max;
+    }
+    return Result;
+}
+
+inline float Clamp01(float Value)
+{
+    float Result = Clamp(0.0f, Value, 1.0f);
+    return Result;
+}
+
 //
 // Vector2 Utility Function
 //
@@ -185,6 +211,13 @@ inline float Length(v2 A)
     return Result;
 }
 
+inline v2 Clamp01(v2 Value)
+{
+    v2 Result;
+    Result.X = Clamp01(Value.X);
+    Result.Y = Clamp01(Value.Y);
+    return Result;
+}
 //
 // Vector3 Utility Function
 //
@@ -263,6 +296,15 @@ inline float LengthSq(v3 A)
 inline float Length(v3 A)
 {
     float Result = SquareRoot(LengthSq(A));
+    return Result;
+}
+
+inline v3 Clamp01(v3 Value)
+{
+    v3 Result;
+    Result.X = Clamp01(Value.X);
+    Result.Y = Clamp01(Value.Y);
+    Result.Z = Clamp01(Value.Z);
     return Result;
 }
 //
@@ -405,6 +447,37 @@ internal bool RectangleIntersect(rectangle3 A, rectangle3 B)
                     B.Max.Y < A.Min.Y || B.Min.Y > A.Max.Y ||
                     B.Max.Z < A.Min.Z || B.Min.Z > A.Max.Z);
 	return Result;
+}
+
+inline float SafeRatioN(float Numerator, float Divisor, float N)
+{
+    float Result = N;
+    if(Divisor != 0.0f)
+    {
+        Result = Numerator / Divisor;
+    }
+    return Result;
+}
+
+inline float SafeRatio0(float Numerator, float Divisor)
+{
+    float Result = SafeRatioN(Numerator, Divisor, 0.0f);
+    return Result;
+}
+
+inline float SafeRatio1(float Numerator, float Divisor)
+{
+    float Result = SafeRatioN(Numerator, Divisor, 1.0f);
+    return Result;
+}
+
+inline v3 BaryCentric(rectangle3 A, v3 Pos)
+{
+    v3 Result;
+    Result.X = SafeRatio0((Pos.X - A.Min.X), (A.Max.X - A.Min.X));
+    Result.Y = SafeRatio0((Pos.Y - A.Min.Y), (A.Max.Y - A.Min.Y));
+    Result.Z = SafeRatio0((Pos.Z - A.Min.Z), (A.Max.Z - A.Min.Z));
+    return Result;
 }
 
 #define RAAVANAN_MATH_H

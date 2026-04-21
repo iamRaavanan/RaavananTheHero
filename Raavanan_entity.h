@@ -7,25 +7,25 @@ inline bool IsSet(sim_entity* Entity, uint32 Flag)
 	return Result;
 }
 
-inline void AddFlag(sim_entity* Entity, uint32 Flag)
+inline void AddFlags(sim_entity* Entity, uint32 Flag)
 {
     Entity->Flags |= Flag;
 }
 
-inline void ClearFlag(sim_entity* Entity, uint32 Flag)
+inline void ClearFlags(sim_entity* Entity, uint32 Flag)
 {
     Entity->Flags &= ~Flag;
 }
 
 inline void MakeEntityNonSpatial(sim_entity* Entity)
 {
-	AddFlag(Entity, EntityFlag_NonSpatial);
+	AddFlags(Entity, EntityFlag_NonSpatial);
 	Entity->Pos = InvalidP;
 }
 
 inline void MakeEntitySpatial(sim_entity* Entity, v3 Pos, v3 dP)
 {
-	ClearFlag(Entity, EntityFlag_NonSpatial);
+	ClearFlags(Entity, EntityFlag_NonSpatial);
 	Entity->Pos = Pos;
 	Entity->dPlayerP = dP;
 }
