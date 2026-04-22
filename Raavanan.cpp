@@ -287,9 +287,9 @@ internal add_low_entity_result AddStairWell(game_state* GameState, uint32 AbsTil
 {
 	world_position WorldPos = ChunkPositionFromTilePosition(GameState->World, AbsTileX, AbsTileY, AbsTileZ, V3(0,0,0.5f*GameState->World->TileDepthInMeters));
 	add_low_entity_result Entity = AddLowEntity(GameState, EntityType_Stairwell, WorldPos);
-	Entity.Low->Sim.Dim.Y = GameState->World->TileSideInMeters;
-	Entity.Low->Sim.Dim.X = Entity.Low->Sim.Dim.Y;
-	Entity.Low->Sim.Dim.Z = 1.2f * GameState->World->TileDepthInMeters;
+	Entity.Low->Sim.Dim.X = GameState->World->TileSideInMeters;
+	Entity.Low->Sim.Dim.Y = 2.0f * GameState->World->TileSideInMeters;
+	Entity.Low->Sim.Dim.Z = GameState->World->TileDepthInMeters;
 	AddFlags (&Entity.Low->Sim, EntityFlag_Collides);
 	return Entity;
 }
@@ -554,7 +554,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 					}
 					else if (CreatedZDoor)
 					{
-						if((TileX == 10) && (TileY == 6))
+						if((TileX == 10) && (TileY == 4))
 						{
 							AddStairWell (GameState, AbsTileX, AbsTileY, DoorDown ? AbsTileZ -1 : AbsTileZ);
 						}
@@ -870,8 +870,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 				MoveEntity(GameState, SimRegion, Entity, Input->deltaTime, &MoveSpec, ddPlayer);
 			}
 			
-			float EntityGroundPointX = ScreenCenterX + MeterToPixels * Entity->Pos.X;
-			float EntityGroundPointY = ScreenCenterY - MeterToPixels * Entity->Pos.Y;
+			float ZFudge = (1.0f + 0.1f*Entity->Pos.Z);
+
+			float EntityGroundPointX = ScreenCenterX + MeterToPixels * ZFudge * Entity->Pos.X;
+			float EntityGroundPointY = ScreenCenterY - MeterToPixels * ZFudge * Entity->Pos.Y;
 			float EntityZ = -MeterToPixels * Entity->Pos.Z;
 	#if 0
 			v2 PlayerLeftTop = {EntityGroundPointX - 0.5f * MeterToPixels * LowEntity->Sim.Width, EntityGroundPointY - 0.5f * MeterToPixels * LowEntity->Sim.Height};

@@ -40,6 +40,7 @@ enum sim_entity_flags
 	EntityFlag_Collides = (1 << 0),
 	EntityFlag_NonSpatial = (1 << 1),
 	EntityFlag_Movable = (1 << 2),
+	EntityFlag_ZSupported = (1 << 3),
 
 	EntityFlag_Simming = (1 << 30),	
 };
@@ -99,6 +100,7 @@ struct sim_region
     uint32 EntityCount;
     sim_entity* Entities;
 
+	float DefaultGroundLevel;
     sim_entity_hash Hash[4096];
 };
 
