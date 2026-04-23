@@ -392,38 +392,40 @@ internal void MoveEntity (game_state* GameState, sim_region* Region, sim_entity*
 						v3 MaxCorner = 0.5f * MinkowskiDiameter;
 
 						v3 Rel = Entity->Pos - TestEntity->Pos;
-
-						float tMinTest = tMin;
-						v3 TestWallNormal = {};
-						bool HitCheck = false;						
-						
-						if(TestWall (MinCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y, &tMinTest, MinCorner.Y, MaxCorner.Y))
+						if((Rel.Z >= MinCorner.X) && (Rel.Z < MaxCorner.Z))
 						{
-							TestWallNormal = V3(-1,0,0);
-							HitCheck = true;
-						}
-						if(TestWall (MaxCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y, &tMinTest, MinCorner.Y, MaxCorner.Y))
-						{
-							TestWallNormal = V3(1,0,0);
-							HitCheck = true;
-						}
-						if(TestWall (MinCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X, &tMinTest, MinCorner.X, MaxCorner.X))
-						{
-							TestWallNormal = V3(0,-1,0);
-							HitCheck = true;
-						}
-						if(TestWall (MaxCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X, &tMinTest, MinCorner.X, MaxCorner.X))
-						{
-							TestWallNormal = V3(0,1,0);
-							HitCheck = true;
-						}
-						if(HitCheck)
-						{
-							if(SpeculativeCollide (Entity, TestEntity))
+							float tMinTest = tMin;
+							v3 TestWallNormal = {};
+							bool HitCheck = false;						
+							
+							if(TestWall (MinCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y, &tMinTest, MinCorner.Y, MaxCorner.Y))
 							{
-								tMin = tMinTest;
-								WallNormal = TestWallNormal;
-								HitEntity = TestEntity;
+								TestWallNormal = V3(-1,0,0);
+								HitCheck = true;
+							}
+							if(TestWall (MaxCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y, &tMinTest, MinCorner.Y, MaxCorner.Y))
+							{
+								TestWallNormal = V3(1,0,0);
+								HitCheck = true;
+							}
+							if(TestWall (MinCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X, &tMinTest, MinCorner.X, MaxCorner.X))
+							{
+								TestWallNormal = V3(0,-1,0);
+								HitCheck = true;
+							}
+							if(TestWall (MaxCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X, &tMinTest, MinCorner.X, MaxCorner.X))
+							{
+								TestWallNormal = V3(0,1,0);
+								HitCheck = true;
+							}
+							if(HitCheck)
+							{
+								if(SpeculativeCollide (Entity, TestEntity))
+								{
+									tMin = tMinTest;
+									WallNormal = TestWallNormal;
+									HitEntity = TestEntity;
+								}
 							}
 						}
 					}		
@@ -462,7 +464,7 @@ internal void MoveEntity (game_state* GameState, sim_region* Region, sim_entity*
 			if(CanOverlap(GameState, Entity, TestEntity))
 			{
 				rectangle3 TestEntityRect = RectCenterDim(TestEntity->Pos, TestEntity->Dim);
-				if(RectangleIntersect(EntityRect, TestEntityRect))
+				if(RectanglesIntersect(EntityRect, TestEntityRect))
 				{
 					HandleOverlap(GameState, Entity, TestEntity, deltaTime, &Ground);
 				}
