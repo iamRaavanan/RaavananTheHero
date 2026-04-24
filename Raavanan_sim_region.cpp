@@ -338,6 +338,10 @@ internal void MoveEntity (game_state* GameState, sim_region* Region, sim_entity*
 	Assert(!IsSet(Entity, EntityFlag_NonSpatial));
 	world* World = Region->World;
 	
+	if(Entity->Type == EntityType_Hero)
+	{
+		int32 test = 0;
+	}
 	if(MoveSpec->UnitMaxAccelVector)
 	{
 		float ddPLength = LengthSq(ddPlayer);
@@ -346,7 +350,6 @@ internal void MoveEntity (game_state* GameState, sim_region* Region, sim_entity*
 			ddPlayer *= (1.0f / SquareRoot(ddPLength));
 		}
 	}
-	
 	ddPlayer *= MoveSpec->Speed;
 	ddPlayer += -MoveSpec->Drag * Entity->dPlayerP;
 	if(!IsSet(Entity, EntityFlag_ZSupported))
@@ -471,6 +474,7 @@ internal void MoveEntity (game_state* GameState, sim_region* Region, sim_entity*
 			}
 		}
 	}
+	// Ground	+= 0.5f * Entity->Dim.Z;
 	if (Entity->Pos.Z <= Ground || (IsSet(Entity, EntityFlag_ZSupported) && (Entity->dPlayerP.Z == 0.0f)))
 	{
 		Entity->Pos.Z = Ground;
