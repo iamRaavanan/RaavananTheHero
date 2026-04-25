@@ -319,6 +319,12 @@ internal void HandleOverlap(game_state* GameState, sim_entity* Mover, sim_entity
 	}
 }
 
+inline v3 GetEntityGroundPoint (sim_entity* Entity)
+{
+	v3 Result = Entity->Pos + V3(0, 0, 0.5f * Entity->Dim.Z);
+	return Result;
+}
+
 internal bool SpeculativeCollide (sim_entity* Mover, sim_entity* Region)
 {
 	bool Result = true;
@@ -328,7 +334,7 @@ internal bool SpeculativeCollide (sim_entity* Mover, sim_entity* Region)
 		v3 Bary = Clamp01(BaryCentric(RegionRect, Mover->Pos));
 		float Ground = Lerp(RegionRect.Min.Z, Bary.Y, RegionRect.Max.Z);
 		float StepHeight = 0.1f;
-		Result = ((AbsoluteValue(Mover->Pos.Z - Ground) > StepHeight) || ((Bary.Y > 0.1f) && (Bary.Y < 0.9f)));
+		Result = ((AbsoluteValue(GetEntityGroundPoint(Mover).Z - Ground) > StepHeight) || ((Bary.Y > 0.1f) && (Bary.Y < 0.9f)));
 	}
 	return Result;
 }
@@ -366,7 +372,7 @@ internal void MoveEntity (game_state* GameState, sim_region* Region, sim_entity*
 	float DistanceRemaining = Entity->DistanceLimit;
 	if(DistanceRemaining == 0.0f)
 	{
-		DistanceRemaining = 1000.0f;
+		DistanceRemaining = 10000.0f;
 	}
 
 	for (uint32 Iteration = 0; Iteration < 4; ++Iteration)
@@ -388,14 +394,14 @@ internal void MoveEntity (game_state* GameState, sim_region* Region, sim_entity*
 				for (uint32 TestHighEntityIndex = 0; TestHighEntityIndex < Region->EntityCount; ++TestHighEntityIndex)
 				{
 					sim_entity* TestEntity = Region->Entities + TestHighEntityIndex;
-					if(CanCollide(GameState, Entity, TestEntity) && TestEntity->Pos.Z == Entity->Pos.Z)
+					if(CanCollide(GameState, Entity, TestEntity))
 					{
 						v3 MinkowskiDiameter = {TestEntity->Dim.X + Entity->Dim.X, TestEntity->Dim.Y + Entity->Dim.Y, TestEntity->Dim.Z + Entity->Dim.Z};
 						v3 MinCorner = -0.5f * MinkowskiDiameter;
 						v3 MaxCorner = 0.5f * MinkowskiDiameter;
-
+	
 						v3 Rel = Entity->Pos - TestEntity->Pos;
-						if((Rel.Z >= MinCorner.X) && (Rel.Z < MaxCorner.Z))
+						if((Rel.Z >= MinCorner.Z) && (Rel.Z < MaxCorner.Z))
 						{
 							float tMinTest = tMin;
 							v3 TestWallNormal = {};
@@ -474,7 +480,7 @@ internal void MoveEntity (game_state* GameState, sim_region* Region, sim_entity*
 			}
 		}
 	}
-	// Ground	+= 0.5f * Entity->Dim.Z;
+	// Ground	+= Entity->Pos.Z - GetEntityGroundPoint(Entity).Z;
 	if (Entity->Pos.Z <= Ground || (IsSet(Entity, EntityFlag_ZSupported) && (Entity->dPlayerP.Z == 0.0f)))
 	{
 		Entity->Pos.Z = Ground;

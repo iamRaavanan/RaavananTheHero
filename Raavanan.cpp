@@ -236,7 +236,7 @@ internal add_low_entity_result AddLowEntity(game_state* GameState, entity_type T
 internal add_low_entity_result AddGroundedEntity(game_state* GameState, entity_type Type, world_position WorldPos, v3 Dim)
 {
 	world_position OffsetP = MapIntoChunkSpace(GameState->World, WorldPos, V3(0, 0, 0.5f*Dim.Z));
-	add_low_entity_result Entity = AddLowEntity(GameState, Type, WorldPos);
+	add_low_entity_result Entity = AddLowEntity(GameState, Type, OffsetP);
 	Entity.Low->Sim.Dim = Dim;
 	return Entity;
 }
@@ -294,7 +294,7 @@ internal add_low_entity_result AddStairWell(game_state* GameState, uint32 AbsTil
 	v3 Dim = {GameState->World->TileSideInMeters,
               2.0f*GameState->World->TileSideInMeters,
               GameState->World->TileDepthInMeters};
-	world_position WorldPos = ChunkPositionFromTilePosition(GameState->World, AbsTileX, AbsTileY, AbsTileZ, V3(0,0,0.5f*GameState->World->TileDepthInMeters));
+	world_position WorldPos = ChunkPositionFromTilePosition(GameState->World, AbsTileX, AbsTileY, AbsTileZ);
 	add_low_entity_result Entity = AddGroundedEntity(GameState, EntityType_Stairwell, WorldPos, Dim);
 	AddFlags (&Entity.Low->Sim, EntityFlag_Collides);
 	return Entity;
@@ -326,7 +326,7 @@ internal void PushPiece(entity_visible_piece_group* Group, loaded_bitmap* Bitmap
 	entity_visible_piece* Piece = Group->Pieces + Group->PieceCount++;
 	Piece->Bitmap = Bitmap;
 	Piece->Offset = Group->GameState->MetersToPixel * V2(Offset.X, -Offset.Y) - Align;
-	Piece->OffsetZ = Group->GameState->MetersToPixel * OffsetZ;
+	Piece->OffsetZ = OffsetZ;
 	Piece->EntityZCofficient = EntityZCofficient;
 	Piece->R = Color.R;
 	Piece->G = Color.G;
@@ -793,7 +793,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 				case EntityType_Wall:
 					{
 					#if 0
-					RenderRectangle(Buffer, PlayerLeftTop, PlayerLeftTop + MeterToPixels * 0.9f * EntiryWidthHeight, PlayerR, PlayerG, PlayerB);	
+					RenderRectangle(Buffer, PlayerLeftTop, PlayerLeftTop + MeterToPixels * 0.9f * EntiryWidthHeight, PlayerR, PlayerG, PlayerB);
 					#else
 					PushBitmap(&PieceGroup, &GameState->Tree, V2(0,0), 0, V2(40,80));
 					#endif
@@ -815,7 +815,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 				break;
 				case EntityType_Stairwell:
 				{
-					PushRect(&PieceGroup, V2(0,0), 0, Entity->Dim.XY, V4(1,1,0,1));
+					PushRect(&PieceGroup, V2(0,0), 0, Entity->Dim.XY, V4(1,0.5f,0,1), 0.0f);
+					PushRect(&PieceGroup, V2(0,0), Entity->Dim.Z, Entity->Dim.XY, V4(1,1,0,1), 0.0f);
 				}
 				break;
 				case EntityType_Familiar:
@@ -872,25 +873,22 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 			{
 				MoveEntity(GameState, SimRegion, Entity, Input->deltaTime, &MoveSpec, ddPlayer);
 			}
-			
-			v3 EntityBaseP = Entity->Pos - V3(0, 0, 0.5f * Entity->Dim.Z);
-			float ZFudge = (1.0f + 0.1f*Entity->Pos.Z);
 
-			float EntityGroundPointX = ScreenCenterX + MeterToPixels * ZFudge * EntityBaseP.X;
-			float EntityGroundPointY = ScreenCenterY - MeterToPixels * ZFudge * EntityBaseP.Y;
-			float EntityZ = -MeterToPixels * Entity->Pos.Z;
-	#if 0
-			v2 PlayerLeftTop = {EntityGroundPointX - 0.5f * MeterToPixels * LowEntity->Sim.Width, EntityGroundPointY - 0.5f * MeterToPixels * LowEntity->Sim.Height};
-			v2 EntiryWidthHeight = {LowEntity->Sim.Width, LowEntity->Sim.Height};
-	#endif
 			for(uint32 PieceIndex = 0; PieceIndex < PieceGroup.PieceCount; ++PieceIndex)
 			{
 				entity_visible_piece* Piece = PieceGroup.Pieces + PieceIndex;
+				
+				v3 EntityBaseP = GetEntityGroundPoint(Entity);
+				float ZFudge = (1.0f + 0.1f*(EntityBaseP.Z + Piece->OffsetZ));
+
+				float EntityGroundPointX = ScreenCenterX + MeterToPixels * ZFudge * EntityBaseP.X;
+				float EntityGroundPointY = ScreenCenterY - MeterToPixels * ZFudge * EntityBaseP.Y;
+				float EntityZ = -MeterToPixels * EntityBaseP.Z;
 				v2 Center = v2{EntityGroundPointX + Piece->Offset.X,
-								EntityGroundPointY + Piece->Offset.Y + Piece->OffsetZ + Piece->EntityZCofficient * EntityZ};
+								EntityGroundPointY + Piece->Offset.Y + Piece->EntityZCofficient * EntityZ};
 				if(Piece->Bitmap)
 				{
-					RenderBitMap(Buffer, Piece->Bitmap, EntityGroundPointX + Piece->Offset.X, EntityGroundPointY + Piece->Offset.Y + Piece->EntityZCofficient * EntityZ + Piece->OffsetZ, Piece->A);
+					RenderBitMap(Buffer, Piece->Bitmap, Center.X, Center.Y, Piece->A);
 				}
 				else
 				{
