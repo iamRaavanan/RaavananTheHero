@@ -133,7 +133,6 @@ struct game_state
 	world *World;
 	memory_arena WorldArena;	
 	
-	float MetersToPixel;
 	uint32 CameraFollowingEntityIndex;
 	world_position CameraP;
 

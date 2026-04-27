@@ -30,5 +30,19 @@ inline void MakeEntitySpatial(sim_entity* Entity, v3 Pos, v3 dP)
 	Entity->dPlayerP = dP;
 }
 
+inline v3 GetEntityGroundPoint (sim_entity* Entity)
+{
+	v3 Result = Entity->Pos - V3(0, 0, 0.5f * Entity->Dim.Z);
+	return Result;
+}
+
+inline float GetStairGround(sim_entity* Entity, v3 AtGroundPoint)
+{
+	Assert(Entity->Type == EntityType_Stairwell);
+	rectangle3 RegionRect = RectCenterDim(Entity->Pos, Entity->Dim);
+	v3 Bary = Clamp(GetBaryCentric(RegionRect, AtGroundPoint));
+	float Result = RegionRect.Min.Z + Bary.Y * Entity->WalkableHeight;
+	return Result;
+}
 #define RAAVANAN_ENTITY_H
 #endif

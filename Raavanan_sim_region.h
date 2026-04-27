@@ -39,9 +39,9 @@ enum sim_entity_flags
 {
 	EntityFlag_Collides = (1 << 0),
 	EntityFlag_NonSpatial = (1 << 1),
-	EntityFlag_Movable = (1 << 2),
-	EntityFlag_ZSupported = (1 << 4),
-
+	EntityFlag_Moveable = (1 << 2),
+	EntityFlag_ZSupported = (1 << 3),
+	
 	EntityFlag_Simming = (1 << 30),	
 };
 
@@ -73,6 +73,7 @@ struct sim_entity
 
 	entity_reference Sword;
 	float DistanceLimit;
+	float WalkableHeight;
 };
 
 struct stored_entity

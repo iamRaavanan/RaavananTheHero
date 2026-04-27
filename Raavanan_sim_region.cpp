@@ -140,6 +140,7 @@ internal sim_region* BeginSim(memory_arena* SimArena, game_state* GameState, wor
 
     world_position MinChunkP = MapIntoChunkSpace(World, SimRegion->Origin, GetMinCorner(SimRegion->Bounds));
 	world_position MaxChunkP = MapIntoChunkSpace(World, SimRegion->Origin, GetMaxCorner(SimRegion->Bounds));
+	
 	for(int32 ChunkZ = MinChunkP.ChunkZ; ChunkZ <= MaxChunkP.ChunkZ; ++ChunkZ)
 	{
 		for(int32 ChunkY = MinChunkP.ChunkY; ChunkY <= MaxChunkP.ChunkY; ++ChunkY)
@@ -168,7 +169,7 @@ internal sim_region* BeginSim(memory_arena* SimArena, game_state* GameState, wor
 				}
 			}
 		}
-	}	
+	}
 	uint32 SimregionCount = SimRegion->EntityCount;
     return SimRegion;
 }
@@ -305,24 +306,16 @@ internal bool CanOverlap(game_state* GameState, sim_entity* Mover, sim_entity* R
 		{
 			Result = true;
 		}
-	}	
+	}
 	return Result;
 }
 
-internal void HandleOverlap(game_state* GameState, sim_entity* Mover, sim_entity* Region, float dt, float* Ground)
+internal void HandleOverlap(game_state* GameState, sim_entity* Mover, sim_entity* Region, float deltaTime, float* Ground)
 {
 	if(Region->Type == EntityType_Stairwell)
 	{
-		rectangle3 RegionRect = RectCenterDim(Region->Pos, Region->Dim);
-		v3 Bary = Clamp01(BaryCentric(RegionRect, Mover->Pos));
-		*Ground = Lerp(RegionRect.Min.Z, Bary.Y, RegionRect.Max.Z);
+		*Ground = GetStairGround(Region, GetEntityGroundPoint(Mover));
 	}
-}
-
-inline v3 GetEntityGroundPoint (sim_entity* Entity)
-{
-	v3 Result = Entity->Pos + V3(0, 0, 0.5f * Entity->Dim.Z);
-	return Result;
 }
 
 internal bool SpeculativeCollide (sim_entity* Mover, sim_entity* Region)
@@ -330,11 +323,11 @@ internal bool SpeculativeCollide (sim_entity* Mover, sim_entity* Region)
 	bool Result = true;
 	if(Region->Type == EntityType_Stairwell)
 	{
-		rectangle3 RegionRect = RectCenterDim(Region->Pos, Region->Dim);
-		v3 Bary = Clamp01(BaryCentric(RegionRect, Mover->Pos));
-		float Ground = Lerp(RegionRect.Min.Z, Bary.Y, RegionRect.Max.Z);
 		float StepHeight = 0.1f;
-		Result = ((AbsoluteValue(GetEntityGroundPoint(Mover).Z - Ground) > StepHeight) || ((Bary.Y > 0.1f) && (Bary.Y < 0.9f)));
+		// Result = ((AbsoluteValue(GetEntityGroundPoint(Mover).Z - Ground) > StepHeight) || ((Bary.Y > 0.1f) && (Bary.Y < 0.9f)));
+		v3 MoverGroundPoint = GetEntityGroundPoint(Mover);
+		float Ground = GetStairGround(Region, MoverGroundPoint);
+		Result = (AbsoluteValue(MoverGroundPoint.Z - Ground) > StepHeight);
 	}
 	return Result;
 }
@@ -344,10 +337,6 @@ internal void MoveEntity (game_state* GameState, sim_region* Region, sim_entity*
 	Assert(!IsSet(Entity, EntityFlag_NonSpatial));
 	world* World = Region->World;
 	
-	if(Entity->Type == EntityType_Hero)
-	{
-		int32 test = 0;
-	}
 	if(MoveSpec->UnitMaxAccelVector)
 	{
 		float ddPLength = LengthSq(ddPlayer);
@@ -356,12 +345,15 @@ internal void MoveEntity (game_state* GameState, sim_region* Region, sim_entity*
 			ddPlayer *= (1.0f / SquareRoot(ddPLength));
 		}
 	}
+	
 	ddPlayer *= MoveSpec->Speed;
 	ddPlayer += -MoveSpec->Drag * Entity->dPlayerP;
+	
 	if(!IsSet(Entity, EntityFlag_ZSupported))
 	{
 		ddPlayer += V3(0, 0, -9.8f);
 	}
+
 	v3 OldPlayerP = Entity->Pos;
 	v3 PlayerDelta = 0.5f * ddPlayer * Square(deltaTime) + Entity->dPlayerP * deltaTime;
 	Entity->dPlayerP = ddPlayer * deltaTime + Entity->dPlayerP;
@@ -372,7 +364,7 @@ internal void MoveEntity (game_state* GameState, sim_region* Region, sim_entity*
 	float DistanceRemaining = Entity->DistanceLimit;
 	if(DistanceRemaining == 0.0f)
 	{
-		DistanceRemaining = 10000.0f;
+		DistanceRemaining = 1000.0f;
 	}
 
 	for (uint32 Iteration = 0; Iteration < 4; ++Iteration)
@@ -399,35 +391,35 @@ internal void MoveEntity (game_state* GameState, sim_region* Region, sim_entity*
 						v3 MinkowskiDiameter = {TestEntity->Dim.X + Entity->Dim.X, TestEntity->Dim.Y + Entity->Dim.Y, TestEntity->Dim.Z + Entity->Dim.Z};
 						v3 MinCorner = -0.5f * MinkowskiDiameter;
 						v3 MaxCorner = 0.5f * MinkowskiDiameter;
-	
+
 						v3 Rel = Entity->Pos - TestEntity->Pos;
+						
 						if((Rel.Z >= MinCorner.Z) && (Rel.Z < MaxCorner.Z))
 						{
 							float tMinTest = tMin;
 							v3 TestWallNormal = {};
-							bool HitCheck = false;						
-							
+							bool HitTest = false;
 							if(TestWall (MinCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y, &tMinTest, MinCorner.Y, MaxCorner.Y))
 							{
 								TestWallNormal = V3(-1,0,0);
-								HitCheck = true;
+								HitTest = true;
 							}
 							if(TestWall (MaxCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y, &tMinTest, MinCorner.Y, MaxCorner.Y))
 							{
 								TestWallNormal = V3(1,0,0);
-								HitCheck = true;
+								HitTest = true;
 							}
 							if(TestWall (MinCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X, &tMinTest, MinCorner.X, MaxCorner.X))
 							{
 								TestWallNormal = V3(0,-1,0);
-								HitCheck = true;
+								HitTest = true;
 							}
 							if(TestWall (MaxCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X, &tMinTest, MinCorner.X, MaxCorner.X))
 							{
 								TestWallNormal = V3(0,1,0);
-								HitCheck = true;
+								HitTest = true;
 							}
-							if(HitCheck)
+							if(HitTest)
 							{
 								if(SpeculativeCollide (Entity, TestEntity))
 								{
@@ -437,7 +429,7 @@ internal void MoveEntity (game_state* GameState, sim_region* Region, sim_entity*
 								}
 							}
 						}
-					}		
+					}
 				}		
 			}
 			Entity->Pos += tMin * PlayerDelta;
@@ -445,6 +437,7 @@ internal void MoveEntity (game_state* GameState, sim_region* Region, sim_entity*
 			if(HitEntity)
 			{
 				PlayerDelta = DesiredPos - Entity->Pos;
+				
 				bool StopsOnCollision = HandleCollision(GameState, Entity, HitEntity);
 
 				if(StopsOnCollision)
@@ -463,7 +456,6 @@ internal void MoveEntity (game_state* GameState, sim_region* Region, sim_entity*
 			break;
 		}
 	}
-	
 	float Ground = 0.0f;
 	{
 		rectangle3 EntityRect = RectCenterDim(Entity->Pos, Entity->Dim);
@@ -473,15 +465,15 @@ internal void MoveEntity (game_state* GameState, sim_region* Region, sim_entity*
 			if(CanOverlap(GameState, Entity, TestEntity))
 			{
 				rectangle3 TestEntityRect = RectCenterDim(TestEntity->Pos, TestEntity->Dim);
-				if(RectanglesIntersect(EntityRect, TestEntityRect))
+				if(RectangleIntersect(EntityRect, TestEntityRect))
 				{
 					HandleOverlap(GameState, Entity, TestEntity, deltaTime, &Ground);
 				}
 			}
 		}
 	}
-	// Ground	+= Entity->Pos.Z - GetEntityGroundPoint(Entity).Z;
-	if (Entity->Pos.Z <= Ground || (IsSet(Entity, EntityFlag_ZSupported) && (Entity->dPlayerP.Z == 0.0f)))
+	Ground += Entity->Pos.Z - GetEntityGroundPoint(Entity).Z;
+	if ((Entity->Pos.Z <= Ground) || (IsSet(Entity, EntityFlag_ZSupported) && Entity->dPlayerP.Z == 0.0f))
 	{
 		Entity->Pos.Z = Ground;
 		Entity->dPlayerP.Z = 0;
@@ -491,6 +483,7 @@ internal void MoveEntity (game_state* GameState, sim_region* Region, sim_entity*
 	{
 		ClearFlags(Entity, EntityFlag_ZSupported);
 	}
+
 	if(Entity->DistanceLimit != 0.0f)
 	{
 		Entity->DistanceLimit = DistanceRemaining;

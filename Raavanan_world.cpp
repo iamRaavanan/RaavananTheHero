@@ -128,13 +128,13 @@ inline world_position CenteredChunkPoint (uint32 AbsTileX, uint32 AbsTileY,uint3
 	return Result;
 }
 
-static void Initializeworld (world *World, float TileSideInMeteres, float TileDepthInMeters)
+static void Initializeworld (world *World, float TileSideInMeteres, float TileDepathInMeteres)
 {
 	World->TileSideInMeters = TileSideInMeteres;
 	World->ChunkDimInMeters = {(float)TILES_PER_CHUNK * TileSideInMeteres,
 								(float)TILES_PER_CHUNK * TileSideInMeteres,
-								(float)TileDepthInMeters};
-	World->TileDepthInMeters = (float)TileDepthInMeters;
+								TileDepathInMeteres};
+	World->TileDepthInMeters = TileDepathInMeteres;
 	World->FirstFree = 0;
 	for (uint32 ChunkIndex = 0; ChunkIndex < ArrayCount(World->ChunkHash); ++ChunkIndex)
 	{
