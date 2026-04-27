@@ -314,9 +314,7 @@ internal void HandleOverlap(game_state* GameState, sim_entity* Mover, sim_entity
 {
 	if(Region->Type == EntityType_Stairwell)
 	{
-		rectangle3 RegionRect = RectCenterDim(Region->Pos, Region->Dim);
-		v3 Bary = Clamp(GetBaryCentric(RegionRect, Mover->Pos));
-		*Ground = Lerp(RegionRect.Min.Z, Bary.Y, RegionRect.Max.Z);
+		*Ground = GetStairGround(Region, GetEntityGroundPoint(Mover));
 	}
 }
 
@@ -325,11 +323,11 @@ internal bool SpeculativeCollide (sim_entity* Mover, sim_entity* Region)
 	bool Result = true;
 	if(Region->Type == EntityType_Stairwell)
 	{
-		rectangle3 RegionRect = RectCenterDim(Region->Pos, Region->Dim);
-		v3 Bary = Clamp(GetBaryCentric(RegionRect, Mover->Pos));
-		float stepHeight = 0.1f;
-		float Ground = Lerp(RegionRect.Min.Z, Bary.Y, RegionRect.Max.Z);
-		Result = ((AbsoluteValue(Mover->Pos.Z - Ground) > stepHeight) || ((Bary.Y > 0.1f) && (Bary.Y < 0.9f)));
+		float StepHeight = 0.1f;
+		// Result = ((AbsoluteValue(GetEntityGroundPoint(Mover).Z - Ground) > StepHeight) || ((Bary.Y > 0.1f) && (Bary.Y < 0.9f)));
+		v3 MoverGroundPoint = GetEntityGroundPoint(Mover);
+		float Ground = GetStairGround(Region, MoverGroundPoint);
+		Result = (AbsoluteValue(MoverGroundPoint.Z - Ground) > StepHeight);
 	}
 	return Result;
 }
@@ -458,7 +456,7 @@ internal void MoveEntity (game_state* GameState, sim_region* Region, sim_entity*
 			break;
 		}
 	}
-	float Ground = Region->DefaultGroundLevel;
+	float Ground = 0.0f;
 	{
 		rectangle3 EntityRect = RectCenterDim(Entity->Pos, Entity->Dim);
 		for (uint32 TestHighEntityIndex = 0; TestHighEntityIndex < Region->EntityCount; ++TestHighEntityIndex)
@@ -474,7 +472,7 @@ internal void MoveEntity (game_state* GameState, sim_region* Region, sim_entity*
 			}
 		}
 	}
-
+	Ground += Entity->Pos.Z - GetEntityGroundPoint(Entity).Z;
 	if ((Entity->Pos.Z <= Ground) || (IsSet(Entity, EntityFlag_ZSupported) && Entity->dPlayerP.Z == 0.0f))
 	{
 		Entity->Pos.Z = Ground;

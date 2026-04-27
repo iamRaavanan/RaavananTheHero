@@ -73,6 +73,7 @@ struct sim_entity
 
 	entity_reference Sword;
 	float DistanceLimit;
+	float WalkableHeight;
 };
 
 struct stored_entity
