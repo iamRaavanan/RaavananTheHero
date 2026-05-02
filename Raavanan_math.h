@@ -135,6 +135,28 @@ inline float Clamp01(float Value)
     return Result;
 }
 
+inline float SafeRatioN(float Numerator, float Divisor, float N)
+{
+    float Result = N;
+    if(Divisor != 0.0f)
+    {
+        Result = Numerator / Divisor;
+    }
+    return Result;
+}
+
+inline float SafeRatio0(float Numerator, float Divisor)
+{
+    float Result = SafeRatioN(Numerator, Divisor, 0);
+    return Result;
+}
+
+inline float SafeRatio1(float Numerator, float Divisor)
+{
+    float Result = SafeRatioN(Numerator, Divisor, 1);
+    return Result;
+}
+
 //
 // Vector2 Utility Function
 //
@@ -374,6 +396,13 @@ inline bool IsInRectangle (rectangle2 Rect, v2 Test)
     return Result;
 }
 
+inline v2 GetBaryCentric(rectangle2 A, v2 Pos)
+{
+    v2 Result;
+    Result.X = SafeRatio0((Pos.X - A.Min.X), (A.Max.X - A.Min.X));
+    Result.Y = SafeRatio0((Pos.Y - A.Min.Y), (A.Max.Y - A.Min.Y));
+    return Result;
+}
 //
 // Rectangle3 Utility Functions
 //
@@ -449,34 +478,20 @@ internal bool RectangleIntersect(rectangle3 A, rectangle3 B)
 	return Result;
 }
 
-inline float SafeRatioN(float Numerator, float Divisor, float N)
-{
-    float Result = N;
-    if(Divisor != 0.0f)
-    {
-        Result = Numerator / Divisor;
-    }
-    return Result;
-}
-
-inline float SafeRatio0(float Numerator, float Divisor)
-{
-    float Result = SafeRatioN(Numerator, Divisor, 0);
-    return Result;
-}
-
-inline float SafeRatio1(float Numerator, float Divisor)
-{
-    float Result = SafeRatioN(Numerator, Divisor, 1);
-    return Result;
-}
-
 inline v3 GetBaryCentric(rectangle3 A, v3 Pos)
 {
     v3 Result;
     Result.X = SafeRatio0((Pos.X - A.Min.X), (A.Max.X - A.Min.X));
     Result.Y = SafeRatio0((Pos.Y - A.Min.Y), (A.Max.Y - A.Min.Y));
     Result.Z = SafeRatio0((Pos.Z - A.Min.Z), (A.Max.Z - A.Min.Z));
+    return Result;
+}
+
+inline rectangle2 ToRectangleXY(rectangle3 A)
+{
+    rectangle2 Result;
+    Result.Min = A.Min.XY;
+    Result.Max = A.Max.XY;
     return Result;
 }
 #define RAAVANAN_MATH_H

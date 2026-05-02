@@ -153,6 +153,14 @@ struct game_state
 
 	pairwise_collision_rule* CollisionRuleHash[256];
 	pairwise_collision_rule* FirstFreeCollisionRule;
+	
+	sim_entity_collision_volume_group* NullVC;
+	sim_entity_collision_volume_group* SwordVC;
+	sim_entity_collision_volume_group* StairWellVC;
+	sim_entity_collision_volume_group* PlayerVC;
+	sim_entity_collision_volume_group* MonsterVC;
+	sim_entity_collision_volume_group* FamiliarVC;
+	sim_entity_collision_volume_group* WallVC;
 #if RAAVANAN_INTERNAL
 	int ToneHz;
 	int XOffset;

@@ -96,10 +96,10 @@ internal sim_entity* AddEntityRaw(game_state* GameState, sim_region* Region, uin
     return Entity;
 }
 
-internal bool EntityOverlapsRectanlge(v3 Pos, v3 Dim, rectangle3 Bounds)
+internal bool EntityOverlapsRectanlge(v3 Pos, sim_entity_collision_volume Volume, rectangle3 Bounds)
 {
-	rectangle3 UpdatedRect = AddRadiusTo(Bounds, 0.5f * Dim);
-	bool Result = IsInRectangle(UpdatedRect, Pos);
+	rectangle3 UpdatedRect = AddRadiusTo(Bounds, 0.5f * Volume.Dim);
+	bool Result = IsInRectangle(UpdatedRect, Pos + Volume.OffsetPos);
 	return Result;
 }
 
@@ -111,7 +111,7 @@ internal sim_entity* AddEntity(game_state* GameState, sim_region* Region, uint32
         if(SimPos)
         {
             Dest->Pos = *SimPos;
-			Dest->Updatable = EntityOverlapsRectanlge(Dest->Pos, Dest->Dim, Region->UpdatableBounds);
+			Dest->Updatable = EntityOverlapsRectanlge(Dest->Pos, Dest->Collision->TotalVolume, Region->UpdatableBounds);
         }
         else
         {
@@ -159,7 +159,7 @@ internal sim_region* BeginSim(memory_arena* SimArena, game_state* GameState, wor
 							if(!IsSet(&Low->Sim, EntityFlag_NonSpatial))
 							{
 								v3 SimSpaceP = GetSimSpacePos(SimRegion, Low);
-								if(EntityOverlapsRectanlge(SimSpaceP, Low->Sim.Dim, SimRegion->Bounds))
+								if(EntityOverlapsRectanlge(SimSpaceP, Low->Sim.Collision->TotalVolume, SimRegion->Bounds))
 								{
 									AddEntity(GameState, SimRegion, LowEntityIndex, Low, &SimSpaceP);
 								}
@@ -347,7 +347,9 @@ internal void MoveEntity (game_state* GameState, sim_region* Region, sim_entity*
 	}
 	
 	ddPlayer *= MoveSpec->Speed;
-	ddPlayer += -MoveSpec->Drag * Entity->dPlayerP;
+	v3 Drag = -MoveSpec->Drag * Entity->dPlayerP;
+	Drag.Z = 0.0f;
+	ddPlayer += Drag;
 	
 	if(!IsSet(Entity, EntityFlag_ZSupported))
 	{
@@ -388,44 +390,52 @@ internal void MoveEntity (game_state* GameState, sim_region* Region, sim_entity*
 					sim_entity* TestEntity = Region->Entities + TestHighEntityIndex;
 					if(CanCollide(GameState, Entity, TestEntity))
 					{
-						v3 MinkowskiDiameter = {TestEntity->Dim.X + Entity->Dim.X, TestEntity->Dim.Y + Entity->Dim.Y, TestEntity->Dim.Z + Entity->Dim.Z};
-						v3 MinCorner = -0.5f * MinkowskiDiameter;
-						v3 MaxCorner = 0.5f * MinkowskiDiameter;
-
-						v3 Rel = Entity->Pos - TestEntity->Pos;
-						
-						if((Rel.Z >= MinCorner.Z) && (Rel.Z < MaxCorner.Z))
+						for (uint32 EntityVolumeIndex = 0; EntityVolumeIndex < Entity->Collision->VolumeCount; ++EntityVolumeIndex)
 						{
-							float tMinTest = tMin;
-							v3 TestWallNormal = {};
-							bool HitTest = false;
-							if(TestWall (MinCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y, &tMinTest, MinCorner.Y, MaxCorner.Y))
+							sim_entity_collision_volume* EntityVolume = Entity->Collision->Volumes + EntityVolumeIndex;
+							for (uint32 TestEntityVolumeIndex = 0; TestEntityVolumeIndex < TestEntity->Collision->VolumeCount; ++TestEntityVolumeIndex)
 							{
-								TestWallNormal = V3(-1,0,0);
-								HitTest = true;
-							}
-							if(TestWall (MaxCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y, &tMinTest, MinCorner.Y, MaxCorner.Y))
-							{
-								TestWallNormal = V3(1,0,0);
-								HitTest = true;
-							}
-							if(TestWall (MinCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X, &tMinTest, MinCorner.X, MaxCorner.X))
-							{
-								TestWallNormal = V3(0,-1,0);
-								HitTest = true;
-							}
-							if(TestWall (MaxCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X, &tMinTest, MinCorner.X, MaxCorner.X))
-							{
-								TestWallNormal = V3(0,1,0);
-								HitTest = true;
-							}
-							if(HitTest)
-							{
-								if(SpeculativeCollide (Entity, TestEntity))
+								sim_entity_collision_volume* TestVolume = TestEntity->Collision->Volumes + TestEntityVolumeIndex;
+								v3 MinkowskiDiameter = {TestVolume->Dim.X + EntityVolume->Dim.X, TestVolume->Dim.Y + EntityVolume->Dim.Y, TestVolume->Dim.Z + EntityVolume->Dim.Z};
+								v3 MinCorner = -0.5f * MinkowskiDiameter;
+								v3 MaxCorner = 0.5f * MinkowskiDiameter;
+
+								v3 Rel = ((Entity->Pos + EntityVolume->OffsetPos) - (TestEntity->Pos + TestVolume->OffsetPos));
+								
+								if((Rel.Z >= MinCorner.Z) && (Rel.Z < MaxCorner.Z))
 								{
-									tMin = tMinTest;
-									WallNormal = TestWallNormal;
-									HitEntity = TestEntity;
+									float tMinTest = tMin;
+									v3 TestWallNormal = {};
+									bool HitTest = false;
+									if(TestWall (MinCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y, &tMinTest, MinCorner.Y, MaxCorner.Y))
+									{
+										TestWallNormal = V3(-1,0,0);
+										HitTest = true;
+									}
+									if(TestWall (MaxCorner.X, Rel.X, Rel.Y, PlayerDelta.X, PlayerDelta.Y, &tMinTest, MinCorner.Y, MaxCorner.Y))
+									{
+										TestWallNormal = V3(1,0,0);
+										HitTest = true;
+									}
+									if(TestWall (MinCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X, &tMinTest, MinCorner.X, MaxCorner.X))
+									{
+										TestWallNormal = V3(0,-1,0);
+										HitTest = true;
+									}
+									if(TestWall (MaxCorner.Y, Rel.Y, Rel.X, PlayerDelta.Y, PlayerDelta.X, &tMinTest, MinCorner.X, MaxCorner.X))
+									{
+										TestWallNormal = V3(0,1,0);
+										HitTest = true;
+									}
+									if(HitTest)
+									{
+										if(SpeculativeCollide (Entity, TestEntity))
+										{
+											tMin = tMinTest;
+											WallNormal = TestWallNormal;
+											HitEntity = TestEntity;
+										}
+									}
 								}
 							}
 						}
@@ -458,13 +468,13 @@ internal void MoveEntity (game_state* GameState, sim_region* Region, sim_entity*
 	}
 	float Ground = 0.0f;
 	{
-		rectangle3 EntityRect = RectCenterDim(Entity->Pos, Entity->Dim);
+		rectangle3 EntityRect = RectCenterDim(Entity->Pos + Entity->Collision->TotalVolume.OffsetPos, Entity->Collision->TotalVolume.Dim);
 		for (uint32 TestHighEntityIndex = 0; TestHighEntityIndex < Region->EntityCount; ++TestHighEntityIndex)
 		{
 			sim_entity* TestEntity = Region->Entities + TestHighEntityIndex;
 			if(CanOverlap(GameState, Entity, TestEntity))
 			{
-				rectangle3 TestEntityRect = RectCenterDim(TestEntity->Pos, TestEntity->Dim);
+				rectangle3 TestEntityRect = RectCenterDim(TestEntity->Pos + TestEntity->Collision->TotalVolume.OffsetPos, TestEntity->Collision->TotalVolume.Dim);
 				if(RectangleIntersect(EntityRect, TestEntityRect))
 				{
 					HandleOverlap(GameState, Entity, TestEntity, deltaTime, &Ground);
