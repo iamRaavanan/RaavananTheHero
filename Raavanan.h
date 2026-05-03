@@ -161,6 +161,8 @@ struct game_state
 	sim_entity_collision_volume_group* MonsterVC;
 	sim_entity_collision_volume_group* FamiliarVC;
 	sim_entity_collision_volume_group* WallVC;
+	sim_entity_collision_volume_group* StandardRoomVC;
+	
 #if RAAVANAN_INTERNAL
 	int ToneHz;
 	int XOffset;
