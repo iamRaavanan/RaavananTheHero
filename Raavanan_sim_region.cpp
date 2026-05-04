@@ -252,21 +252,24 @@ internal bool CanCollide (game_state* GameState, sim_entity* A, sim_entity* B)
 			A = B;
 			B = Temp;
 		}
-		if(!IsSet(A, EntityFlag_NonSpatial) && !IsSet(B, EntityFlag_NonSpatial))
+		if(IsSet(A, EntityFlag_Collides) && IsSet(B, EntityFlag_Collides))
 		{
-			Result = true;
-		}
-		
-		uint32 HashBucket = A->StorageIndex & (ArrayCount(GameState->CollisionRuleHash) - 1);
-		for(pairwise_collision_rule* Rule = GameState->CollisionRuleHash[HashBucket]; Rule; Rule = Rule->NextInHash)
-		{
-			if((Rule->StorageIndexA == A->StorageIndex) &&
-				(Rule->StorageIndexB == B->StorageIndex))
+			if(!IsSet(A, EntityFlag_NonSpatial) && !IsSet(B, EntityFlag_NonSpatial))
 			{
-				Result = Rule->CanCollide;
-				break;
+				Result = true;
 			}
-		}
+			
+			uint32 HashBucket = A->StorageIndex & (ArrayCount(GameState->CollisionRuleHash) - 1);
+			for(pairwise_collision_rule* Rule = GameState->CollisionRuleHash[HashBucket]; Rule; Rule = Rule->NextInHash)
+			{
+				if((Rule->StorageIndexA == A->StorageIndex) &&
+					(Rule->StorageIndexB == B->StorageIndex))
+				{
+					Result = Rule->CanCollide;
+					break;
+				}
+			}	
+		}		
 	}
 	return Result;
 }

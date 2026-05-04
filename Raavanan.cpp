@@ -351,6 +351,15 @@ internal void PushRect(entity_visible_piece_group* Group, v2 Offset, float Offse
 	PushPiece(Group, 0, Offset, OffsetZ, V2(0,0), Dim, Color, EntityZCofficient);
 }
 
+internal void PushRectOutline(entity_visible_piece_group* Group, v2 Offset, float OffsetZ, v2 Dim, v4 Color, float EntityZCofficient = 1.0f)
+{
+	float Thickness = 0.1f;
+	PushPiece(Group, 0, Offset - V2(0, 0.5f * Dim.Y), OffsetZ, V2(0,0), V2(Dim.X, Thickness), Color, EntityZCofficient);
+	PushPiece(Group, 0, Offset + V2(0, 0.5f * Dim.Y), OffsetZ, V2(0,0), V2(Dim.X, Thickness), Color, EntityZCofficient);
+	PushPiece(Group, 0, Offset - V2(0.5f * Dim.X, 0), OffsetZ, V2(0,0), V2(Thickness, Dim.Y), Color, EntityZCofficient);
+	PushPiece(Group, 0, Offset + V2(0.5f * Dim.X, 0), OffsetZ, V2(0,0), V2(Thickness, Dim.Y), Color, EntityZCofficient);
+}
+
 internal void DrawHitPoints(sim_entity* Entity, entity_visible_piece_group* PieceGroup)
 {
 	if(Entity->HitPointMax >= 1)
@@ -913,7 +922,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 					for(uint32 VolumeIndex = 0; VolumeIndex < Entity->Collision->VolumeCount; ++VolumeIndex)
 					{
 						sim_entity_collision_volume* Volume = Entity->Collision->Volumes + VolumeIndex;
-						PushRect(&PieceGroup, Volume->OffsetPos.XY, 0, Volume->Dim.XY, V4(1, 0.5f, 0, 1), 0.0f);
+						PushRectOutline(&PieceGroup, Volume->OffsetPos.XY, 0, Volume->Dim.XY, V4(1, 0.5f, 0, 1), 0.0f);
 					}
 				}
 				break;
