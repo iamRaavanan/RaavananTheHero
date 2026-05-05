@@ -606,7 +606,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 					}
 					if(ShouldBeDoor)
 					{
-						AddWall (GameState, AbsTileX, AbsTileY, AbsTileZ);
+						if(ScreenIndex == 0)
+							AddWall (GameState, AbsTileX, AbsTileY, AbsTileZ);
 					}
 					else if (CreatedZDoor)
 					{
