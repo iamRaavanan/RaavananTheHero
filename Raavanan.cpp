@@ -466,6 +466,32 @@ sim_entity_collision_volume_group* MakeNullCollision(game_state* GameState)
 	Group->TotalVolume.Dim = V3(0, 0, 0);
 	return Group;
 }
+
+internal void RenderTestGround(game_state* GameState, game_offscreen_buffer* Buffer)
+{
+	uint32 RandomNumberIndex = 0;
+	v2 Center = V2(0.5f* Buffer->Width, 0.5f * Buffer->Height);
+	for(uint32 GrassIndex = 0; GrassIndex < 100; ++GrassIndex)
+	{
+		Assert(RandomNumberIndex < ArrayCount(RandomNumberTable));
+		loaded_bitmap* Stamp;
+		if(RandomNumberTable[RandomNumberIndex++]%2)
+		{
+			Stamp = GameState->Grass + (RandomNumberTable[RandomNumberIndex] % ArrayCount(GameState->Grass));
+		}
+		else
+		{
+			Stamp = GameState->Stone + (RandomNumberTable[RandomNumberIndex] % ArrayCount(GameState->Stone));
+		}
+		float Radius = 5.0f;
+		v2 BitmapCenter = V2(0.5f * Stamp->Width, 0.5f * Stamp->Height);
+		v2 Offset = {2.0f * (float)RandomNumberTable[RandomNumberIndex++]/(float)MaxRandomNumber - 1,
+				2.0f * (float)RandomNumberTable[RandomNumberIndex++]/(float)MaxRandomNumber - 1};
+		v2 Pos = Center + GameState->MetersToPixels * Radius * Offset - BitmapCenter;
+		RenderBitMap(Buffer, Stamp, Pos.X, Pos.Y);
+	}
+}
+
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
 	Assert((&Input->Controllers[0].Terminator - &Input->Controllers[0].Buttons[0]) == ArrayCount(Input->Controllers[0].Buttons));
@@ -503,6 +529,17 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 																	0.9f *GameState->World->TileDepthInMeters);
 				
 		AddLowEntity (GameState, EntityType_None, NullPosition());
+
+		GameState->Grass[0] = DEBUGLoadBMP (Thread, Memory->DEBUGReadEntireFile, "test2/grass00.bmp");
+		GameState->Grass[1] = DEBUGLoadBMP (Thread, Memory->DEBUGReadEntireFile, "test2/grass01.bmp");
+		GameState->Tuft[0] = DEBUGLoadBMP (Thread, Memory->	DEBUGReadEntireFile, "test2/tuft00.bmp");
+		GameState->Tuft[1] = DEBUGLoadBMP (Thread, Memory->	DEBUGReadEntireFile, "test2/tuft01.bmp");
+		GameState->Tuft[2] = DEBUGLoadBMP (Thread, Memory->	DEBUGReadEntireFile, "test2/tuft02.bmp");
+		GameState->Stone[0] = DEBUGLoadBMP (Thread, Memory->DEBUGReadEntireFile, "test2/ground00.bmp");
+		GameState->Stone[1] = DEBUGLoadBMP (Thread, Memory->DEBUGReadEntireFile, "test2/ground01.bmp");
+		GameState->Stone[2] = DEBUGLoadBMP (Thread, Memory->DEBUGReadEntireFile, "test2/ground02.bmp");
+		GameState->Stone[3] = DEBUGLoadBMP (Thread, Memory->DEBUGReadEntireFile, "test2/ground03.bmp");
+
 		GameState->Backdrop = DEBUGLoadBMP (Thread, Memory->DEBUGReadEntireFile, "test/test_background.bmp");
 		GameState->Shadow = DEBUGLoadBMP (Thread, Memory->DEBUGReadEntireFile, "test/test_hero_shadow.bmp");
 		GameState->Tree = DEBUGLoadBMP (Thread, Memory->DEBUGReadEntireFile, "test2/tree00.bmp");
@@ -781,6 +818,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 #else
 	RenderBitMap (Buffer, &GameState->Backdrop, 0, 0);
 #endif
+	RenderTestGround(GameState, Buffer);
 
 	float ScreenCenterX = 0.5f * (float)Buffer->Width;
 	float ScreenCenterY = 0.5f * (float)Buffer->Height;
