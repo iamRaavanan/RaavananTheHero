@@ -1061,7 +1061,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 						GBuffer.Width = backBuffer.Width;
 						GBuffer.Height = backBuffer.Height;
 						GBuffer.Pitch = backBuffer.Pitch;		
-						GBuffer.BytesPerPixel = backBuffer.BytesPerPixel;				
+						// GBuffer.BytesPerPixel = backBuffer.BytesPerPixel;
 						
 						if(RecordingState.InputRecordingIndex >= 0)
 						{

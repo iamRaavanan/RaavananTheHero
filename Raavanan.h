@@ -88,7 +88,8 @@ struct loaded_bitmap
 {
 	int32 Width;
 	int32 Height;
-	uint32 *Pixels;
+	int32 Pitch;
+	void* Memory;
 };
 
 struct hero_bitmaps
@@ -166,6 +167,8 @@ struct game_state
 	sim_entity_collision_volume_group* FamiliarVC;
 	sim_entity_collision_volume_group* WallVC;
 	sim_entity_collision_volume_group* StandardRoomVC;
+
+	loaded_bitmap GroundBuffer;
 	
 #if RAAVANAN_INTERNAL
 	int ToneHz;

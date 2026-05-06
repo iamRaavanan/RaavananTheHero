@@ -52,7 +52,7 @@ internal void RenderGradiant(game_offscreen_buffer *Buffer, int xOffset, int yOf
 	}
 }
 
-internal void RenderRectangle(game_offscreen_buffer *Buffer, v2 vMin, v2 vMax, float R, float G, float B)
+internal void RenderRectangle(loaded_bitmap* Buffer, v2 vMin, v2 vMax, float R, float G, float B)
 {
 	int32 MinX = RoundFloatToInt32(vMin.X);
 	int32 MinY = RoundFloatToInt32(vMin.Y);
@@ -65,7 +65,7 @@ internal void RenderRectangle(game_offscreen_buffer *Buffer, v2 vMin, v2 vMax, f
 	MaxY = (MaxY > Buffer->Height) ? Buffer->Height : MaxY;
 
 	uint32 Color = ((RoundFloatToUInt32(R * 255.0f) << 16 | RoundFloatToUInt32(G * 255.0f) << 8 | RoundFloatToUInt32(B * 255.0f)));
-	uint8 *Row = ((uint8 *)Buffer->Memory + MinX * Buffer->BytesPerPixel + MinY * Buffer->Pitch);
+	uint8 *Row = ((uint8 *)Buffer->Memory + MinX * BITMAP_BYTES_PER_PIXEL + MinY * Buffer->Pitch);
 	
 	for (int y = MinY; y < MaxY; ++y)
 	{
@@ -78,7 +78,7 @@ internal void RenderRectangle(game_offscreen_buffer *Buffer, v2 vMin, v2 vMax, f
 	}
 }
 
-internal void RenderBitMap(game_offscreen_buffer *Buffer, loaded_bitmap *Bitmap, float realX, float realY, float CAlpha = 1.0f)
+internal void RenderBitMap(loaded_bitmap *Buffer, loaded_bitmap *Bitmap, float realX, float realY, float CAlpha = 1.0f)
 {
 	int32 MinX = RoundFloatToInt32(realX);
 	int32 MinY = RoundFloatToInt32(realY);
@@ -101,37 +101,39 @@ internal void RenderBitMap(game_offscreen_buffer *Buffer, loaded_bitmap *Bitmap,
 	MaxX = (MaxX > Buffer->Width) ? Buffer->Width : MaxX;
 	MaxY = (MaxY > Buffer->Height) ? Buffer->Height : MaxY;
 
-	uint32 *SrcRow = Bitmap->Pixels + Bitmap->Width * (Bitmap->Height - 1);
-	SrcRow += -SrcOffsetY * Bitmap->Width + SrcOffsetX; 
-	uint8 *DstRow = ((uint8 *)Buffer->Memory + MinX * Buffer->BytesPerPixel + MinY * Buffer->Pitch);
+	uint8 *SrcRow = (uint8 *)Bitmap->Memory + SrcOffsetY * Bitmap->Pitch + BITMAP_BYTES_PER_PIXEL * SrcOffsetX; 
+	uint8 *DstRow = ((uint8 *)Buffer->Memory + MinX * BITMAP_BYTES_PER_PIXEL + MinY * Buffer->Pitch);
 	for (int y = MinY; y < MaxY; ++y)
 	{
 		uint32 *Dst = (uint32 *)DstRow;
-		uint32 *Src = SrcRow;
+		uint32 *Src = (uint32 *)SrcRow;
 		for (int x = MinX; x < MaxX; ++x)
 		{
-			float A = (float)((*Src >> 24) & 0xFF) / 255.0f;
-			A *= CAlpha;
+			float SA = (float)((*Src >> 24) & 0xFF) / 255.0f;
+			SA *= CAlpha;
 			float SR = (float)((*Src >> 16) & 0xFF);
 			float SG = (float)((*Src >> 8) & 0xFF);
 			float SB = (float)((*Src >> 0) & 0xFF);
-
+			
+			float DA = (float)((*Dst >> 24) & 0xFF);
 			float DR = (float)((*Dst >> 16) & 0xFF);
 			float DG = (float)((*Dst >> 8) & 0xFF);
 			float DB = (float)((*Dst >> 0) & 0xFF);
 
-			float R = (1 - A) * DR + A * SR;
-			float G = (1 - A) * DG + A * SG;
-			float B = (1 - A) * DB + A * SB;
+			float A = Maximum(DA, 255.0f * SA);
+			float R = (1 - SA) * DR + SA * SR;
+			float G = (1 - SA) * DG + SA * SG;
+			float B = (1 - SA) * DB + SA * SB;
 
-			*Dst = (((uint32)(R + 0.5f) << 16) |
+			*Dst = (((uint32)(A + 0.5f) << 24) |
+					((uint32)(R + 0.5f) << 16) |
 					((uint32)(G + 0.5f) << 8) |
 					((uint32)(B + 0.5f) << 0));
 			++Dst;
 			++Src;
 		}
 		DstRow += Buffer->Pitch;
-		SrcRow -= Bitmap->Width;
+		SrcRow += Bitmap->Pitch;
 	}
 }
 //#if RAAVANAN_INTERNAL
@@ -169,7 +171,7 @@ internal loaded_bitmap DEBUGLoadBMP (thread_context *Thread, debug_read_entire_f
 	{
 		bitmap_header *Header = (bitmap_header *)FileResult.Content;
 		uint32 *Pixels = (uint32 *)((uint8 *)FileResult.Content + Header->BitmapOffset);
-		Result.Pixels = Pixels;
+		Result.Memory = Pixels;
 		Result.Width = Header->Width;
 		Result.Height = Header->Height;
 
@@ -212,6 +214,8 @@ uint32 RedMask = Header->RedMask;
             }
         }
 	}
+	Result.Pitch = -Result.Width * BITMAP_BYTES_PER_PIXEL;
+	Result.Memory = (uint8 *)Result.Memory - Result.Pitch * (Result.Height - 1);
 	return Result;
 }
 //#endif
@@ -467,29 +471,48 @@ sim_entity_collision_volume_group* MakeNullCollision(game_state* GameState)
 	return Group;
 }
 
-internal void RenderTestGround(game_state* GameState, game_offscreen_buffer* Buffer)
+internal void RenderTestGround(game_state* GameState, loaded_bitmap* RenderBuffer)
 {
-	uint32 RandomNumberIndex = 0;
-	v2 Center = V2(0.5f* Buffer->Width, 0.5f * Buffer->Height);
+	random_series Series = RandomSeed(1234);
+	v2 Center = 0.5f*V2i(RenderBuffer->Width, RenderBuffer->Height);
 	for(uint32 GrassIndex = 0; GrassIndex < 100; ++GrassIndex)
 	{
-		Assert(RandomNumberIndex < ArrayCount(RandomNumberTable));
 		loaded_bitmap* Stamp;
-		if(RandomNumberTable[RandomNumberIndex++]%2)
+		if(RandomChoice(&Series, 2))
 		{
-			Stamp = GameState->Grass + (RandomNumberTable[RandomNumberIndex] % ArrayCount(GameState->Grass));
+			Stamp = GameState->Grass + RandomChoice(&Series, ArrayCount(GameState->Grass));
 		}
 		else
 		{
-			Stamp = GameState->Stone + (RandomNumberTable[RandomNumberIndex] % ArrayCount(GameState->Stone));
+			Stamp = GameState->Stone + RandomChoice(&Series, ArrayCount(GameState->Stone));
 		}
 		float Radius = 5.0f;
-		v2 BitmapCenter = V2(0.5f * Stamp->Width, 0.5f * Stamp->Height);
-		v2 Offset = {2.0f * (float)RandomNumberTable[RandomNumberIndex++]/(float)MaxRandomNumber - 1,
-				2.0f * (float)RandomNumberTable[RandomNumberIndex++]/(float)MaxRandomNumber - 1};
+		v2 BitmapCenter = 0.5f*V2i(Stamp->Width, Stamp->Height);
+		v2 Offset = {RandomBilateral(&Series), RandomBilateral(&Series)};
 		v2 Pos = Center + GameState->MetersToPixels * Radius * Offset - BitmapCenter;
-		RenderBitMap(Buffer, Stamp, Pos.X, Pos.Y);
+		RenderBitMap(RenderBuffer, Stamp, Pos.X, Pos.Y);
 	}
+	for(uint32 GrassIndex = 0; GrassIndex < 100; ++GrassIndex)
+	{
+		loaded_bitmap* Stamp = GameState->Tuft + RandomChoice(&Series, ArrayCount(GameState->Tuft));
+		float Radius = 5.0f;
+		v2 BitmapCenter = 0.5f*V2i(Stamp->Width, Stamp->Height);
+		v2 Offset = {RandomBilateral(&Series), RandomBilateral(&Series)};
+		v2 Pos = Center + GameState->MetersToPixels * Radius * Offset - BitmapCenter;
+		RenderBitMap(RenderBuffer, Stamp, Pos.X, Pos.Y);
+	}
+}
+
+loaded_bitmap MakeEmptyBitmap(memory_arena* Arena, int32 Width, int32 Height)
+{
+	loaded_bitmap Result = {};
+	Result.Width = Width;
+	Result.Height = Height;
+	Result.Pitch = Result.Width * BITMAP_BYTES_PER_PIXEL;
+	int32 TotalBitmapSize = Width * Height * BITMAP_BYTES_PER_PIXEL;
+	Result.Memory = PushSize_(Arena, TotalBitmapSize);
+	ZeroSize(TotalBitmapSize, Result.Memory);
+	return Result;
 }
 
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
@@ -565,8 +588,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 		Bitmap->Cape = DEBUGLoadBMP(Thread, Memory->DEBUGReadEntireFile, "test/test_hero_front_cape.bmp");
 		Bitmap->Torso = DEBUGLoadBMP(Thread, Memory->DEBUGReadEntireFile, "test/test_hero_front_torso.bmp");
 		Bitmap->Align = V2(72, 182);		
-
-		uint32 RandomNumberIndex = 0;
+		
+		random_series Series = RandomSeed(1234);
 		uint32 ScreenBaseX = 0;
 		uint32 ScreenBaseY = 0;
 		uint32 ScreenBaseZ = 0;
@@ -583,18 +606,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
 		for (uint32 ScreenIndex = 0; ScreenIndex < 2000; ++ScreenIndex)
 		{
-			Assert(RandomNumberIndex < ArrayCount(RandomNumberTable));
-			uint32 RandomChoice;
-			if(DoorUp || DoorDown)
-            {
-                RandomChoice = RandomNumberTable[RandomNumberIndex++] % 2;
-            }
-            else
-            {
-                RandomChoice = RandomNumberTable[RandomNumberIndex++] % 3;
-            }
+			uint32 DoorDirection = RandomChoice(&Series, (DoorUp || DoorDown) ? 2 : 3);
 			bool CreatedZDoor = false;
-			if(RandomChoice == 2)
+			if(DoorDirection == 2)
 			{
 				CreatedZDoor = true;
 				if(AbsTileZ == ScreenBaseZ)	
@@ -607,7 +621,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 				}
 				
 			}
-			else if(RandomChoice == 1)
+			else if(DoorDirection == 1)
 			{
 				DoorRight = true;
 			}
@@ -671,7 +685,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 			DoorRight = false;
 			DoorTop = false;
 			
-			if(RandomChoice == 2)
+			if(DoorDirection == 2)
 			{
 				//AbsTileZ = 1 - AbsTileZ;	// AbsTileZ is 0 it goes to 1 otherwise, vice versa
 				if (AbsTileZ == ScreenBaseZ)
@@ -683,7 +697,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 					AbsTileZ = ScreenBaseZ;
 				}
 			}
-			else if(RandomChoice == 1)
+			else if(DoorDirection == 1)
 			{
 				ScreenX += 1;
 			}
@@ -722,14 +736,16 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 		AddMonster(GameState, CameraTileX - 2, CameraTileY + 2, CameraTileZ);
 		for(int FamiliarIndex = 0; FamiliarIndex < 1; ++FamiliarIndex)
 		{
-			int32 FamiliarOffsetX = (RandomNumberTable[RandomNumberIndex++] % 10) - 7;
-			int32 FamiliarOffsetY = (RandomNumberTable[RandomNumberIndex++] % 10) - 3;
+			int32 FamiliarOffsetX = RandomBetween(&Series, -7, 7);
+			int32 FamiliarOffsetY = RandomBetween(&Series, -3, -1);
 			if((FamiliarOffsetX != 0) || (FamiliarOffsetY != 0))
 			{
 				AddFamiliar(GameState, CameraTileX + FamiliarOffsetX, CameraTileY + FamiliarOffsetY, CameraTileZ);
 			}
 		}		
 		
+		GameState->GroundBuffer = MakeEmptyBitmap(&GameState->WorldArena, 512, 512);
+		RenderTestGround(GameState, &GameState->GroundBuffer);
 		Memory->IsInitialized = true;
 	}
 	world *World = GameState->World;
@@ -813,15 +829,20 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 	InitializeArena(&SimArena, Memory->TransientStorageSize, Memory->TransientStorage);
 	sim_region* SimRegion = BeginSim(&SimArena, GameState, GameState->World, GameState->CameraP, CameraBounds, Input->deltaTime);
 	
+	loaded_bitmap RenderBuffer_ = {};
+	loaded_bitmap* RenderBuffer = &RenderBuffer_;
+	RenderBuffer->Width = Buffer->Width;
+	RenderBuffer->Height = Buffer->Height;
+	RenderBuffer->Pitch = Buffer->Pitch;
+	RenderBuffer->Memory = Buffer->Memory;
 #if 1
-	RenderRectangle(Buffer, V2(0.0f, 0.0f), V2((float)Buffer->Width, (float)Buffer->Height), 0.5f, 0.5f, 0.5f);
+	RenderRectangle(RenderBuffer, V2(0.0f, 0.0f), V2((float)RenderBuffer->Width, (float)RenderBuffer->Height), 0.5f, 0.5f, 0.5f);
+	RenderBitMap (RenderBuffer, &GameState->GroundBuffer, 0, 0);
 #else
-	RenderBitMap (Buffer, &GameState->Backdrop, 0, 0);
 #endif
-	RenderTestGround(GameState, Buffer);
 
-	float ScreenCenterX = 0.5f * (float)Buffer->Width;
-	float ScreenCenterY = 0.5f * (float)Buffer->Height;
+	float ScreenCenterX = 0.5f * (float)RenderBuffer->Width;
+	float ScreenCenterY = 0.5f * (float)RenderBuffer->Height;
 	
 	entity_visible_piece_group PieceGroup;
 	PieceGroup.GameState = GameState;
@@ -885,7 +906,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 				case EntityType_Wall:
 					{
 					#if 0
-					RenderRectangle(Buffer, PlayerLeftTop, PlayerLeftTop + MeterToPixels * 0.9f * EntiryWidthHeight, PlayerR, PlayerG, PlayerB);	
+					RenderRectangle(RenderBuffer, PlayerLeftTop, PlayerLeftTop + MeterToPixels * 0.9f * EntiryWidthHeight, PlayerR, PlayerG, PlayerB);	
 					#else
 					PushBitmap(&PieceGroup, &GameState->Tree, V2(0,0), 0, V2(40,80));
 					#endif
@@ -958,11 +979,13 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 				break;
 				case EntityType_Space:
 				{
+					#if 0
 					for(uint32 VolumeIndex = 0; VolumeIndex < Entity->Collision->VolumeCount; ++VolumeIndex)
 					{
 						sim_entity_collision_volume* Volume = Entity->Collision->Volumes + VolumeIndex;
 						PushRectOutline(&PieceGroup, Volume->OffsetPos.XY, 0, Volume->Dim.XY, V4(1, 0.5f, 0, 1), 0.0f);
 					}
+					#endif
 				}
 				break;
 				default:
@@ -993,12 +1016,12 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 								EntityGroundPointY + Piece->Offset.Y + Piece->EntityZCofficient * EntityZ};
 				if(Piece->Bitmap)
 				{
-					RenderBitMap(Buffer, Piece->Bitmap, Center.X, Center.Y, Piece->A);
+					RenderBitMap(RenderBuffer, Piece->Bitmap, Center.X, Center.Y, Piece->A);
 				}
 				else
 				{
 					v2 HalfDim = MeterToPixels*0.5f * Piece->Dim;
-					RenderRectangle(Buffer, Center - HalfDim, Center + HalfDim, Piece->R, Piece->G, Piece->B);
+					RenderRectangle(RenderBuffer, Center - HalfDim, Center + HalfDim, Piece->R, Piece->G, Piece->B);
 				}
 			}
 		}

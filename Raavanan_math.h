@@ -56,6 +56,22 @@ struct rectangle3
     v3 Max;
 };
 
+inline v2
+V2i(int32 X, int32 Y)
+{
+    v2 Result = {(float)X, (float)Y};
+
+    return(Result);
+}
+
+inline v2
+V2i(uint32 X, uint32 Y)
+{
+    v2 Result = {(float)X, (float)Y};
+
+    return(Result);
+}
+
 inline v2 V2(float X, float Y)
 {
     v2 Result;
