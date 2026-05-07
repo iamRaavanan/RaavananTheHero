@@ -109,21 +109,23 @@ internal void RenderBitMap(loaded_bitmap *Buffer, loaded_bitmap *Bitmap, float r
 		uint32 *Src = (uint32 *)SrcRow;
 		for (int x = MinX; x < MaxX; ++x)
 		{
-			float SA = (float)((*Src >> 24) & 0xFF) / 255.0f;
-			SA *= CAlpha;
-			float SR = (float)((*Src >> 16) & 0xFF);
-			float SG = (float)((*Src >> 8) & 0xFF);
-			float SB = (float)((*Src >> 0) & 0xFF);
+			float SA = (float)((*Src >> 24) & 0xFF);
+			float RSA = (SA / 255.0f) * CAlpha;
+			float SR = CAlpha * (float)((*Src >> 16) & 0xFF);
+			float SG = CAlpha * (float)((*Src >> 8) & 0xFF);
+			float SB = CAlpha * (float)((*Src >> 0) & 0xFF);
 			
 			float DA = (float)((*Dst >> 24) & 0xFF);
 			float DR = (float)((*Dst >> 16) & 0xFF);
 			float DG = (float)((*Dst >> 8) & 0xFF);
 			float DB = (float)((*Dst >> 0) & 0xFF);
+			float RDA = (DA / 255.0f);
 
-			float A = Maximum(DA, 255.0f * SA);
-			float R = (1 - SA) * DR + SA * SR;
-			float G = (1 - SA) * DG + SA * SG;
-			float B = (1 - SA) * DB + SA * SB;
+			float OneMinusRSA = (1.0f - RSA);
+			float A = 255.0f * (RSA + RDA - RSA* RDA);
+			float R = OneMinusRSA * DR + SR;
+			float G = OneMinusRSA * DG + SG;
+			float B = OneMinusRSA * DB + SB;
 
 			*Dst = (((uint32)(A + 0.5f) << 24) |
 					((uint32)(R + 0.5f) << 16) |
@@ -191,26 +193,29 @@ uint32 RedMask = Header->RedMask;
         Assert(BlueScan.Found);
         Assert(AlphaScan.Found);
 
-        int32 RedShift = 16 - (int32)RedScan.Index;
-        int32 GreenShift = 8 - (int32)GreenScan.Index;
-        int32 BlueShift = 0 - (int32)BlueScan.Index;
-        int32 AlphaShift = 24 - (int32)AlphaScan.Index;
+        int32 RedShiftDown = (int32)RedScan.Index;
+        int32 GreenShiftDown = (int32)GreenScan.Index;
+        int32 BlueShiftDown = (int32)BlueScan.Index;
+        int32 AlphaShiftDown = (int32)AlphaScan.Index;
         
         uint32 *SourceDest = Pixels;
-        for(int32 Y = 0;
-            Y < Header->Height;
-            ++Y)
+        for(int32 Y = 0; Y < Header->Height; ++Y)
         {
-            for(int32 X = 0;
-                X < Header->Width;
-                ++X)
+            for(int32 X = 0; X < Header->Width; ++X)
             {
                 uint32 C = *SourceDest;
-
-                *SourceDest++ = (RotateLeft(C & RedMask, RedShift) |
-                                 RotateLeft(C & GreenMask, GreenShift) |
-                                 RotateLeft(C & BlueMask, BlueShift) |
-                                 RotateLeft(C & AlphaMask, AlphaShift));
+				float R = (float)((C & RedMask) >> RedShiftDown);
+				float G = (float)((C & GreenMask) >> GreenShiftDown);
+				float B = (float)((C & BlueMask) >> BlueShiftDown);
+				float A = (float)((C & AlphaMask) >> AlphaShiftDown);
+				float AN = (A / 255.0f);
+				R = R * AN;
+				G = G * AN;
+				B = B * AN;
+				*SourceDest++ = (((uint32)(A + 0.5f) << 24) |
+								((uint32)(R + 0.5f) << 16) |
+								((uint32)(G + 0.5f) << 8) |
+								((uint32)(B + 0.5f) << 0));
             }
         }
 	}
@@ -751,7 +756,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 	world *World = GameState->World;
 	// Tile width and Height
 	float MeterToPixels = GameState->MetersToPixels;
-	
 	for(int ControllerIndex = 0; ControllerIndex < ArrayCount(Input->Controllers); ++ControllerIndex)
 	{
 		game_controller_input *Controller = GetController(Input, ControllerIndex);
