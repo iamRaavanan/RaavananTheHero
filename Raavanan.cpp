@@ -476,11 +476,13 @@ sim_entity_collision_volume_group* MakeNullCollision(game_state* GameState)
 	return Group;
 }
 
-internal void RenderTestGround(game_state* GameState, loaded_bitmap* RenderBuffer)
+internal void RenderGroundChunk(game_state* GameState, loaded_bitmap* RenderBuffer, world_position* ChunkP)
 {
-	random_series Series = RandomSeed(1234);
-	v2 Center = 0.5f*V2i(RenderBuffer->Width, RenderBuffer->Height);
-	for(uint32 GrassIndex = 0; GrassIndex < 100; ++GrassIndex)
+	random_series Series = RandomSeed(183 * ChunkP->ChunkX + 843 * ChunkP->ChunkY + 453 * ChunkP->ChunkZ);
+	float Width = (float)RenderBuffer->Width;
+	float Height = (float)RenderBuffer->Height;
+	v2 Center = 0.5f*V2(Width, Height);
+	for(uint32 GrassIndex = 0; GrassIndex < 1000; ++GrassIndex)
 	{
 		loaded_bitmap* Stamp;
 		if(RandomChoice(&Series, 2))
@@ -493,17 +495,17 @@ internal void RenderTestGround(game_state* GameState, loaded_bitmap* RenderBuffe
 		}
 		float Radius = 5.0f;
 		v2 BitmapCenter = 0.5f*V2i(Stamp->Width, Stamp->Height);
-		v2 Offset = {RandomBilateral(&Series), RandomBilateral(&Series)};
-		v2 Pos = Center + GameState->MetersToPixels * Radius * Offset - BitmapCenter;
+		v2 Offset = {Width * RandomUnilateral(&Series), Height * RandomUnilateral(&Series)};
+		v2 Pos = Offset - BitmapCenter;
 		RenderBitMap(RenderBuffer, Stamp, Pos.X, Pos.Y);
 	}
-	for(uint32 GrassIndex = 0; GrassIndex < 100; ++GrassIndex)
+	for(uint32 GrassIndex = 0; GrassIndex < 1000; ++GrassIndex)
 	{
 		loaded_bitmap* Stamp = GameState->Tuft + RandomChoice(&Series, ArrayCount(GameState->Tuft));
 		float Radius = 5.0f;
 		v2 BitmapCenter = 0.5f*V2i(Stamp->Width, Stamp->Height);
-		v2 Offset = {RandomBilateral(&Series), RandomBilateral(&Series)};
-		v2 Pos = Center + GameState->MetersToPixels * Radius * Offset - BitmapCenter;
+		v2 Offset = {Width * RandomUnilateral(&Series), Height * RandomUnilateral(&Series)};
+		v2 Pos = Offset - BitmapCenter;
 		RenderBitMap(RenderBuffer, Stamp, Pos.X, Pos.Y);
 	}
 }
@@ -611,7 +613,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
 		for (uint32 ScreenIndex = 0; ScreenIndex < 2000; ++ScreenIndex)
 		{
-			uint32 DoorDirection = RandomChoice(&Series, (DoorUp || DoorDown) ? 2 : 3);
+			// uint32 DoorDirection = RandomChoice(&Series, (DoorUp || DoorDown) ? 2 : 3);
+			uint32 DoorDirection = RandomChoice(&Series, 2);
 			bool CreatedZDoor = false;
 			if(DoorDirection == 2)
 			{
@@ -662,8 +665,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 					}
 					if(ShouldBeDoor)
 					{
-						if(ScreenIndex == 0)
-							AddWall (GameState, AbsTileX, AbsTileY, AbsTileZ);
+						AddWall (GameState, AbsTileX, AbsTileY, AbsTileZ);
 					}
 					else if (CreatedZDoor)
 					{
@@ -749,8 +751,15 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 			}
 		}		
 		
-		GameState->GroundBuffer = MakeEmptyBitmap(&GameState->WorldArena, 512, 512);
-		RenderTestGround(GameState, &GameState->GroundBuffer);
+		float ScreenWidth = (float)Buffer->Width;
+		float ScreenHeight = (float)Buffer->Height;
+		float MaxZScale = 0.5f;
+		float GroundOverScan = 1.5f;
+		uint32 GroundBufferWidth = RoundFloatToInt32(GroundOverScan * ScreenWidth);
+		uint32 GroundBufferHeight = RoundFloatToInt32(GroundOverScan * ScreenHeight);
+		GameState->GroundBuffer = MakeEmptyBitmap(&GameState->WorldArena, GroundBufferWidth, GroundBufferHeight);
+		GameState->GroundBufferPos = GameState->CameraP;
+		RenderGroundChunk(GameState, &GameState->GroundBuffer, &GameState->GroundBufferPos);
 		Memory->IsInitialized = true;
 	}
 	world *World = GameState->World;
@@ -839,14 +848,16 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 	RenderBuffer->Height = Buffer->Height;
 	RenderBuffer->Pitch = Buffer->Pitch;
 	RenderBuffer->Memory = Buffer->Memory;
-#if 1
+	
 	RenderRectangle(RenderBuffer, V2(0.0f, 0.0f), V2((float)RenderBuffer->Width, (float)RenderBuffer->Height), 0.5f, 0.5f, 0.5f);
-	RenderBitMap (RenderBuffer, &GameState->GroundBuffer, 0, 0);
-#else
-#endif
-
 	float ScreenCenterX = 0.5f * (float)RenderBuffer->Width;
 	float ScreenCenterY = 0.5f * (float)RenderBuffer->Height;
+
+	v2 Ground = V2(ScreenCenterX - 0.5f * (float)GameState->GroundBuffer.Width, ScreenCenterY - 0.5f * (float)GameState->GroundBuffer.Height);
+	v3 Delta = Subtract(GameState->World, &GameState->GroundBufferPos, &GameState->CameraP);
+	Delta.Y = -Delta.Y;
+	Ground += GameState->MetersToPixels *  Delta.XY;
+	RenderBitMap (RenderBuffer, &GameState->GroundBuffer, Ground.X, Ground.Y);
 	
 	entity_visible_piece_group PieceGroup;
 	PieceGroup.GameState = GameState;

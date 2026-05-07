@@ -168,6 +168,7 @@ struct game_state
 	sim_entity_collision_volume_group* WallVC;
 	sim_entity_collision_volume_group* StandardRoomVC;
 
+	world_position GroundBufferPos;
 	loaded_bitmap GroundBuffer;
 	
 #if RAAVANAN_INTERNAL
