@@ -49,6 +49,13 @@ struct memory_arena
 	size_t Size;
 	uint8 *Base;
 	size_t UsedSpace;
+	uint32 TempCount;
+};
+
+struct temporary_memory
+{
+	memory_arena* Arena;
+	size_t Used;
 };
 
 inline void InitializeArena (memory_arena *MemoryArena, memory_index Size, void* BasePtr)
@@ -56,6 +63,7 @@ inline void InitializeArena (memory_arena *MemoryArena, memory_index Size, void*
 	MemoryArena->Size = Size;
 	MemoryArena->Base = (uint8 *)BasePtr;
 	MemoryArena->UsedSpace = 0;
+	MemoryArena->TempCount = 0;
 }
 
 #define PushStruct(MemoryArena, type) (type *)PushSize_(MemoryArena, sizeof(type))
@@ -78,6 +86,30 @@ inline void ZeroSize(memory_index Size, void* Ptr)
 		*Byte++ = 0;
 	}
 }
+
+inline temporary_memory BeginTemporaryMemory(memory_arena* Arena)
+{
+	temporary_memory Result;
+	Result.Arena = Arena;
+	Result.Used = Arena->UsedSpace;
+	++Arena->TempCount;
+	return Result;
+}
+
+inline void EndTemporaryMemory(temporary_memory TempMemory)
+{
+	memory_arena* Arena = TempMemory.Arena;
+	Assert(Arena->UsedSpace >= TempMemory.Used);
+	Arena->UsedSpace = TempMemory.Used;
+	Assert(Arena->TempCount > 0);
+	--Arena->TempCount;
+}
+
+inline void CheckArena(memory_arena* Arena)
+{
+	Assert(Arena->TempCount == 0);
+}
+
 #include "Raavanan_intrinsics.h"
 #include "Raavanan_math.h"
 #include "Raavanan_world.h"
@@ -129,10 +161,16 @@ struct pairwise_collision_rule
 	pairwise_collision_rule* NextInHash;
 };
 
+struct ground_buffer
+{
+	world_position Pos;
+	void* Memory;
+};
+
 struct game_state
 {
 	world *World;
-	memory_arena WorldArena;	
+	memory_arena WorldArena;
 	
 	uint32 CameraFollowingEntityIndex;
 	world_position CameraP;
@@ -168,8 +206,6 @@ struct game_state
 	sim_entity_collision_volume_group* WallVC;
 	sim_entity_collision_volume_group* StandardRoomVC;
 
-	world_position GroundBufferPos;
-	loaded_bitmap GroundBuffer;
 	
 #if RAAVANAN_INTERNAL
 	int ToneHz;
@@ -182,6 +218,15 @@ struct game_state
 	int PlayerY;
 	float jumpTime;
 #endif
+};
+
+struct transient_state
+{
+	bool IsInitialized;
+	memory_arena TransientArena;
+	uint32 GroundBufferCount;
+	loaded_bitmap GroundBitmapTemplate;
+	ground_buffer* GroundBuffers;
 };
 
 struct entity_visible_piece
