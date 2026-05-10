@@ -78,6 +78,16 @@ internal void RenderRectangle(loaded_bitmap* Buffer, v2 vMin, v2 vMax, float R, 
 	}
 }
 
+internal void RenderRectOutline(loaded_bitmap* Buffer, v2 Min, v2 Max, v3 Color, float T = 2.0f)
+{
+	float Thickness = 0.1f;
+	RenderRectangle(Buffer, V2(Min.X - T, Min.Y - T), V2(Max.X + T, Min.Y + T), Color.R, Color.G, Color.B);
+	RenderRectangle(Buffer, V2(Min.X - T, Max.Y - T), V2(Max.X + T, Max.Y + T), Color.R, Color.G, Color.B);
+
+	RenderRectangle(Buffer, V2(Min.X - T, Min.Y - T), V2(Min.X + T, Max.Y + T), Color.R, Color.G, Color.B);
+	RenderRectangle(Buffer, V2(Max.X - T, Min.Y - T), V2(Max.X + T, Max.Y + T), Color.R, Color.G, Color.B);
+}
+
 internal void RenderBitMap(loaded_bitmap *Buffer, loaded_bitmap *Bitmap, float realX, float realY, float CAlpha = 1.0f)
 {
 	int32 MinX = RoundFloatToInt32(realX);
@@ -537,6 +547,16 @@ internal loaded_bitmap MakeEmptyBitmap(memory_arena* Arena, int32 Width, int32 H
 	return Result;
 }
 
+#if 0
+internal void RequestGroundBuffers(world_position CenterPos, rectangle3 Bounds)
+{
+	Bounds = Offset(Bounds, CenterPos.Offset);
+	CenterPos.Offset = V3(0,0,0);
+	
+	// FillGroundChunk(TransientState, GameState, TransientState->GroundBuffers, &GameState->CameraP);
+}
+#endif
+
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
 	Assert((&Input->Controllers[0].Terminator - &Input->Controllers[0].Buttons[0]) == ArrayCount(Input->Controllers[0].Buttons));
@@ -786,12 +806,13 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 			GroundBuffer->Memory = TransientState->GroundBitmapTemplate.Memory;
 			GroundBuffer->Pos = NullPosition();	
 		}
-		FillGroundChunk(TransientState, GameState, TransientState->GroundBuffers, &GameState->CameraP);
+		
 		TransientState->IsInitialized = true;
 	}
 	world *World = GameState->World;
 	// Tile width and Height
 	float MeterToPixels = GameState->MetersToPixels;
+	float PixelToMeters = 1.0f / MeterToPixels;
 	for(int ControllerIndex = 0; ControllerIndex < ArrayCount(Input->Controllers); ++ControllerIndex)
 	{
 		game_controller_input *Controller = GetController(Input, ControllerIndex);
@@ -861,6 +882,45 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 		}
 	}
 	
+	loaded_bitmap RenderBuffer_ = {};
+	loaded_bitmap* RenderBuffer = &RenderBuffer_;
+	RenderBuffer->Width = Buffer->Width;
+	RenderBuffer->Height = Buffer->Height;
+	RenderBuffer->Pitch = Buffer->Pitch;
+	RenderBuffer->Memory = Buffer->Memory;
+
+	RenderRectangle(RenderBuffer, V2(0.0f, 0.0f), V2((float)RenderBuffer->Width, (float)RenderBuffer->Height), 0.5f, 0.5f, 0.5f);
+
+	v2 ScreenCenter = V2(0.5f * (float)RenderBuffer->Width, 0.5f * (float)RenderBuffer->Height);
+	{
+		float ScreenWidthInMeters = RenderBuffer->Width * PixelToMeters;
+		float ScreenHeightInMeters = RenderBuffer->Height * PixelToMeters;
+
+		rectangle3 CameraBounds = RectCenterDim(V3(0,0,0), V3(ScreenWidthInMeters, ScreenHeightInMeters, 0));
+		
+		world_position MinChunkP = MapIntoChunkSpace(World, GameState->CameraP, GetMinCorner(CameraBounds));
+		world_position MaxChunkP = MapIntoChunkSpace(World, GameState->CameraP, GetMaxCorner(CameraBounds));
+	
+		for(int32 ChunkZ = MinChunkP.ChunkZ; ChunkZ <= MaxChunkP.ChunkZ; ++ChunkZ)
+		{
+			for(int32 ChunkY = MinChunkP.ChunkY; ChunkY <= MaxChunkP.ChunkY; ++ChunkY)
+			{
+				for(int32 ChunkX = MinChunkP.ChunkX; ChunkX <= MaxChunkP.ChunkX; ++ChunkX)
+				{
+					world_chunk* Chunk = GetWorldChunk(World, ChunkX, ChunkY, ChunkZ);
+					if(Chunk)
+					{
+						world_position ChunkCenterPos = CenteredChunkPoint(Chunk);
+						v3 RelativePos = Subtract(GameState->World, &ChunkCenterPos, &GameState->CameraP);
+						v2 ScreenPos = V2(ScreenCenter.X + MeterToPixels * RelativePos.X, ScreenCenter.Y - MeterToPixels * RelativePos.Y);
+						v2 ScreenDim = GameState->MetersToPixels * World->ChunkDimInMeters.XY;
+						RenderRectOutline(RenderBuffer, ScreenPos - 0.5f * ScreenDim, ScreenPos + 0.5f * ScreenDim, V3(1.0f, 1.0f, 0.0f));
+					}
+				}
+			}
+		}
+	}
+	
 	uint32 TileSpanX = 17 * 3;
 	uint32 TileSpanY = 9 * 3;
 	uint32 TileSpanZ = 1;
@@ -869,17 +929,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 	temporary_memory SimMemory = BeginTemporaryMemory(&TransientState->TransientArena);
 	sim_region* SimRegion = BeginSim(&TransientState->TransientArena, GameState, GameState->World, GameState->CameraP, CameraBounds, Input->deltaTime);
 	
-	loaded_bitmap RenderBuffer_ = {};
-	loaded_bitmap* RenderBuffer = &RenderBuffer_;
-	RenderBuffer->Width = Buffer->Width;
-	RenderBuffer->Height = Buffer->Height;
-	RenderBuffer->Pitch = Buffer->Pitch;
-	RenderBuffer->Memory = Buffer->Memory;
-	
-	RenderRectangle(RenderBuffer, V2(0.0f, 0.0f), V2((float)RenderBuffer->Width, (float)RenderBuffer->Height), 0.5f, 0.5f, 0.5f);
-	float ScreenCenterX = 0.5f * (float)RenderBuffer->Width;
-	float ScreenCenterY = 0.5f * (float)RenderBuffer->Height;
-
 	for(uint32 GroundBufferIndex = 0; GroundBufferIndex < TransientState->GroundBufferCount; ++GroundBufferIndex)
 	{
 		ground_buffer* GroundBuffer = TransientState->GroundBuffers + GroundBufferIndex;
@@ -888,7 +937,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 			loaded_bitmap Bitmap = TransientState->GroundBitmapTemplate;
 			Bitmap.Memory = GroundBuffer->Memory;
 			v3 Delta =  GameState->MetersToPixels * Subtract(GameState->World, &GroundBuffer->Pos, &GameState->CameraP);
-			v2 Ground = V2(ScreenCenterX + Delta.X - 0.5f * (float)Bitmap.Width, ScreenCenterY - Delta.Y - 0.5f * (float)Bitmap.Height);
+			v2 Ground = V2(ScreenCenter.X + Delta.X - 0.5f * (float)Bitmap.Width, ScreenCenter.Y - Delta.Y - 0.5f * (float)Bitmap.Height);
 			RenderBitMap (RenderBuffer, &Bitmap, Ground.X, Ground.Y);
 		}
 	}
@@ -1057,8 +1106,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 				
 				v3 EntityBaseP = GetEntityGroundPoint(Entity);
 				float ZFudge = (1.0f + 0.1f * (EntityBaseP.Z + Piece->OffsetZ));
-				float EntityGroundPointX = ScreenCenterX + MeterToPixels * ZFudge * EntityBaseP.X;
-				float EntityGroundPointY = ScreenCenterY - MeterToPixels * ZFudge * EntityBaseP.Y;
+				float EntityGroundPointX = ScreenCenter.X + MeterToPixels * ZFudge * EntityBaseP.X;
+				float EntityGroundPointY = ScreenCenter.Y - MeterToPixels * ZFudge * EntityBaseP.Y;
 				float EntityZ = -MeterToPixels * EntityBaseP.Z;
 				
 				v2 Center = v2{EntityGroundPointX + Piece->Offset.X,
