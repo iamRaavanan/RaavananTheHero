@@ -260,6 +260,18 @@ internal add_low_entity_result AddGroundedEntity(game_state* GameState, entity_t
 	return Entity;
 }
 
+inline world_position ChunkPositionFromTilePosition(world* World, int32 AbsTileX, int32 AbsTileY, int32 AbsTileZ, v3 AdditionalOffset = V3(0,0,0))
+{
+	world_position BasePos = {};
+	float TileSideInMeter = 1.4f;
+	float TileDepthInMeter = 3.0f;
+	v3 TileDim = V3(TileSideInMeter, TileSideInMeter, TileDepthInMeter);
+	v3 Offset = Hadamard(TileDim, V3((float)AbsTileX, (float)AbsTileY, (float)AbsTileZ));
+	world_position Result = MapIntoChunkSpace(World, BasePos, AdditionalOffset + Offset);
+	Assert(IsCanonical(World, Result.Offset));
+	return Result;
+}
+
 internal add_low_entity_result AddWall (game_state* GameState, uint32 AbsTileX, uint32 AbsTileY, uint32 AbsTileZ)
 {
 	world_position WorldPos = ChunkPositionFromTilePosition(GameState->World, AbsTileX, AbsTileY, AbsTileZ);
@@ -332,7 +344,7 @@ internal add_low_entity_result AddStairWell(game_state* GameState, uint32 AbsTil
 	add_low_entity_result Entity = AddGroundedEntity(GameState, EntityType_Stairwell, WorldPos, GameState->StairWellVC);
 	AddFlags (&Entity.Low->Sim, EntityFlag_Collides);
 	Entity.Low->Sim.WalkableDim = Entity.Low->Sim.Collision->TotalVolume.Dim.XY;
-	Entity.Low->Sim.WalkableHeight = GameState->World->TileDepthInMeters;
+	Entity.Low->Sim.WalkableHeight = GameState->TypicalFloorHeight;
 	return Entity;
 }
 
@@ -560,6 +572,9 @@ internal void RequestGroundBuffers(world_position CenterPos, rectangle3 Bounds)
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
 	Assert((&Input->Controllers[0].Terminator - &Input->Controllers[0].Buttons[0]) == ArrayCount(Input->Controllers[0].Buttons));
+	
+	uint32 GroundBufferWidth = 256;
+	uint32 GroundBufferHeight = 256;
 	Assert(sizeof(game_state) <= Memory->PermanentStorageSize);
 	game_state *GameState = (game_state *)Memory->PermanentStorage;
 
@@ -567,31 +582,31 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 	{
 		uint32 TilesPerWidth = 17;
 		uint32 TilesPerHeight = 9;
+		GameState->MetersToPixels = 48.0f;
+		GameState->PixelToMeters = 1.0f / GameState->MetersToPixels;
+		GameState->TypicalFloorHeight = 3.0f;
+
+		v3 WorldChunkInMeters = V3(GameState->PixelToMeters * (float)GroundBufferWidth, GameState->PixelToMeters * (float)GroundBufferWidth, GameState->TypicalFloorHeight);
 		InitializeArena (&GameState->WorldArena, Memory->PermanentStorageSize - sizeof(game_state), (uint8 *)Memory->PermanentStorage + sizeof(game_state));
 		// Null Entity,
 		
 		GameState->World = PushStruct(&GameState->WorldArena, world);
 		world *World = GameState->World;
 		
-		Initializeworld(World, 1.4f, 3.0f);
+		Initializeworld(World, WorldChunkInMeters);
 		
-		int32 TileSideInPixels = 60;
-		GameState->MetersToPixels = ((float)TileSideInPixels / (float)World->TileSideInMeters);
-		
+		float TileSideInMeters = 1.4f;
+		float TileDepthInMeters = GameState->TypicalFloorHeight;
 		GameState->NullVC = MakeNullCollision(GameState);
 		GameState->SwordVC = MakeSimpleGroundedCollision(GameState, 1.0f, 0.5f, 0.1f);
-		GameState->StairWellVC = MakeSimpleGroundedCollision(GameState, GameState->World->TileSideInMeters, 
-			2.0f * GameState->World->TileSideInMeters, 
-			1.1f *GameState->World->TileDepthInMeters);
+		GameState->StairWellVC = MakeSimpleGroundedCollision(GameState, TileSideInMeters, 
+			2.0f * TileSideInMeters, 
+			1.1f * TileDepthInMeters);
 			GameState->PlayerVC = MakeSimpleGroundedCollision(GameState, 1.0f, 0.5f, 1.2f);
 			GameState->MonsterVC = MakeSimpleGroundedCollision(GameState, 1.0f, 0.5f, 0.5f);
 			GameState->FamiliarVC = MakeSimpleGroundedCollision(GameState, 1.0f, 0.5f, 0.5f);
-			GameState->WallVC = MakeSimpleGroundedCollision(GameState, GameState->World->TileSideInMeters,
-																		GameState->World->TileSideInMeters,
-																		GameState->World->TileDepthInMeters);
-			GameState->StandardRoomVC = MakeSimpleGroundedCollision(GameState, TilesPerWidth * GameState->World->TileSideInMeters,
-																	TilesPerHeight * GameState->World->TileSideInMeters,
-																	0.9f *GameState->World->TileDepthInMeters);
+			GameState->WallVC = MakeSimpleGroundedCollision(GameState, TileSideInMeters, TileSideInMeters, TileDepthInMeters);
+			GameState->StandardRoomVC = MakeSimpleGroundedCollision(GameState, TilesPerWidth * TileSideInMeters, TilesPerHeight * TileSideInMeters, 0.9f * TileDepthInMeters);
 				
 		AddLowEntity (GameState, EntityType_None, NullPosition());
 
@@ -795,8 +810,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 	{
 		InitializeArena (&TransientState->TransientArena, Memory->TransientStorageSize - sizeof(transient_state), (uint8 *)Memory->TransientStorage + sizeof(transient_state));
 		
-		uint32 GroundBufferWidth = 256;
-		uint32 GroundBufferHeight = 256;
 		TransientState->GroundBufferCount = 128;
 		TransientState->GroundBuffers = PushArray(&TransientState->TransientArena, TransientState->GroundBufferCount, ground_buffer);
 		for(uint32 GroundBufferIndex = 0; GroundBufferIndex < TransientState->GroundBufferCount; ++GroundBufferIndex)
@@ -891,15 +904,15 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
 	RenderRectangle(RenderBuffer, V2(0.0f, 0.0f), V2((float)RenderBuffer->Width, (float)RenderBuffer->Height), 0.5f, 0.5f, 0.5f);
 
+	float ScreenWidthInMeters = RenderBuffer->Width * PixelToMeters;
+	float ScreenHeightInMeters = RenderBuffer->Height * PixelToMeters;
+
+	rectangle3 CameraBoundsInMeters = RectCenterDim(V3(0,0,0), V3(ScreenWidthInMeters, ScreenHeightInMeters, 0));
+	
 	v2 ScreenCenter = V2(0.5f * (float)RenderBuffer->Width, 0.5f * (float)RenderBuffer->Height);
 	{
-		float ScreenWidthInMeters = RenderBuffer->Width * PixelToMeters;
-		float ScreenHeightInMeters = RenderBuffer->Height * PixelToMeters;
-
-		rectangle3 CameraBounds = RectCenterDim(V3(0,0,0), V3(ScreenWidthInMeters, ScreenHeightInMeters, 0));
-		
-		world_position MinChunkP = MapIntoChunkSpace(World, GameState->CameraP, GetMinCorner(CameraBounds));
-		world_position MaxChunkP = MapIntoChunkSpace(World, GameState->CameraP, GetMaxCorner(CameraBounds));
+		world_position MinChunkP = MapIntoChunkSpace(World, GameState->CameraP, GetMinCorner(CameraBoundsInMeters));
+		world_position MaxChunkP = MapIntoChunkSpace(World, GameState->CameraP, GetMaxCorner(CameraBoundsInMeters));
 	
 		for(int32 ChunkZ = MinChunkP.ChunkZ; ChunkZ <= MaxChunkP.ChunkZ; ++ChunkZ)
 		{
@@ -907,13 +920,33 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 			{
 				for(int32 ChunkX = MinChunkP.ChunkX; ChunkX <= MaxChunkP.ChunkX; ++ChunkX)
 				{
-					world_chunk* Chunk = GetWorldChunk(World, ChunkX, ChunkY, ChunkZ);
-					if(Chunk)
+					// world_chunk* Chunk = GetWorldChunk(World, ChunkX, ChunkY, ChunkZ);
+					// if(Chunk)
 					{
-						world_position ChunkCenterPos = CenteredChunkPoint(Chunk);
+						world_position ChunkCenterPos = CenteredChunkPoint(ChunkX, ChunkY, ChunkZ);
 						v3 RelativePos = Subtract(GameState->World, &ChunkCenterPos, &GameState->CameraP);
 						v2 ScreenPos = V2(ScreenCenter.X + MeterToPixels * RelativePos.X, ScreenCenter.Y - MeterToPixels * RelativePos.Y);
 						v2 ScreenDim = GameState->MetersToPixels * World->ChunkDimInMeters.XY;
+
+						bool Found = false;
+						ground_buffer* EmptyBuffer = 0;
+						for (uint32 GroundBufferIndex = 0; GroundBufferIndex < TransientState->GroundBufferCount; ++GroundBufferIndex)
+						{
+							ground_buffer* GroundBuffer = TransientState->GroundBuffers + GroundBufferIndex;
+							if(AreInSameChunk(GameState->World, &GroundBuffer->Pos, &ChunkCenterPos))
+							{
+								Found = true;
+								break;
+							}
+							else if(!IsWorldPosValid(GroundBuffer->Pos))
+							{
+								EmptyBuffer = GroundBuffer;
+							}
+						}
+						if(!Found && EmptyBuffer)
+						{
+							FillGroundChunk(TransientState, GameState, EmptyBuffer, &ChunkCenterPos);
+						}
 						RenderRectOutline(RenderBuffer, ScreenPos - 0.5f * ScreenDim, ScreenPos + 0.5f * ScreenDim, V3(1.0f, 1.0f, 0.0f));
 					}
 				}
@@ -921,13 +954,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 		}
 	}
 	
-	uint32 TileSpanX = 17 * 3;
-	uint32 TileSpanY = 9 * 3;
-	uint32 TileSpanZ = 1;
-	rectangle3 CameraBounds = RectCenterDim(V3(0,0,0), World->TileSideInMeters * V3 ((float)TileSpanX, (float)TileSpanY, (float)TileSpanZ));
+	v3 SimBoundsExpansion = V3(15.0f, 15.0f, 15.0f);
+	rectangle3 SimBounds = AddRadiusTo(CameraBoundsInMeters, SimBoundsExpansion);
 	
 	temporary_memory SimMemory = BeginTemporaryMemory(&TransientState->TransientArena);
-	sim_region* SimRegion = BeginSim(&TransientState->TransientArena, GameState, GameState->World, GameState->CameraP, CameraBounds, Input->deltaTime);
+	sim_region* SimRegion = BeginSim(&TransientState->TransientArena, GameState, GameState->World, GameState->CameraP, SimBounds, Input->deltaTime);
 	
 	for(uint32 GroundBufferIndex = 0; GroundBufferIndex < TransientState->GroundBufferCount; ++GroundBufferIndex)
 	{

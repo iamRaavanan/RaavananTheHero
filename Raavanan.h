@@ -172,6 +172,8 @@ struct game_state
 	world *World;
 	memory_arena WorldArena;
 	
+	float TypicalFloorHeight;
+
 	uint32 CameraFollowingEntityIndex;
 	world_position CameraP;
 
@@ -193,6 +195,7 @@ struct game_state
 	loaded_bitmap Sword;
 	loaded_bitmap Stairwell;
 	float MetersToPixels;
+	float PixelToMeters;
 
 	pairwise_collision_rule* CollisionRuleHash[256];
 	pairwise_collision_rule* FirstFreeCollisionRule;

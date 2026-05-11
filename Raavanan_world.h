@@ -32,8 +32,6 @@ struct world_chunk
 
 struct world
 {
-	float TileSideInMeters;
-	float TileDepthInMeters;
 	v3 ChunkDimInMeters;
 	world_entity_block* FirstFree;
 	world_chunk ChunkHash[4096];
