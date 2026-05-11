@@ -950,17 +950,17 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,
 				
 				
 				Win32_game_code Game = Win32LoadGameCode(SrcDLLFullPath, TempDLLFullPath, GamecodeLockFullPath);
-				uint32 LoadCounter = 120;
 				uint64 LastCycleCount = __rdtsc();
 				while(bIsRunning)
 				{
 					NewInput->deltaTime = TargetSecondsPerFrame;
 					FILETIME NewDllWriteTime = Win32GetLastWriteTime(SrcDLLFullPath);
+					NewInput->ExecutableReloaded = false;
 					if(CompareFileTime(&NewDllWriteTime, &Game.DllLastWriteTime) != 0)
 					{
 						Win32UnLoadGameCode(&Game);
 						Game = Win32LoadGameCode(SrcDLLFullPath, TempDLLFullPath, GamecodeLockFullPath);
-						LoadCounter = 0;
+						NewInput->ExecutableReloaded = true;
 					}
 					game_controller_input *OldKeyboardController = GetController(OldInput, 0);
 					game_controller_input *NewKeyboardController = GetController(NewInput, 0);

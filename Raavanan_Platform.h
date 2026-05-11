@@ -44,6 +44,9 @@ typedef size_t memory_index;
 
 #define PI 3.14159265359f
 
+#include<float.h>
+#define FLOATMAX FLT_MAX
+
 #define Assert(Expression) if(!(Expression)) { *(int *) 0 = 0;}
 #define InvalidCodePath Assert(!"InvalidCodePath");
 #define Kilobytes(value) ((value) * 1024LL)
@@ -143,6 +146,7 @@ typedef struct game_input
 	game_button_state MouseButtons[5];
 	int32 MouseX, MouseY, MouseZ;
 
+	bool ExecutableReloaded;
 	float deltaTime;
 
 	game_controller_input Controllers[5];	// 4 controller + 1 Keyboard

@@ -503,35 +503,54 @@ internal void FillGroundChunk(transient_state* TransientState, game_state* GameS
 	loaded_bitmap Bitmap = TransientState->GroundBitmapTemplate;
 	Bitmap.Memory = GroundBuffer->Memory;
 	GroundBuffer->Pos = *ChunkP;
-	random_series Series = RandomSeed(183 * ChunkP->ChunkX + 843 * ChunkP->ChunkY + 453 * ChunkP->ChunkZ);
 	float Width = (float)Bitmap.Width;
 	float Height = (float)Bitmap.Height;
-	v2 Center = 0.5f*V2(Width, Height);
-	for(uint32 GrassIndex = 0; GrassIndex < 100; ++GrassIndex)
+	for(int32 ChunkOffsetX = -1; ChunkOffsetX <= 1; ++ChunkOffsetX)
 	{
-		loaded_bitmap* Stamp;
-		if(RandomChoice(&Series, 2))
+		for(int32 ChunkOffsetY = -1; ChunkOffsetY <= 1; ++ChunkOffsetY)
 		{
-			Stamp = GameState->Grass + RandomChoice(&Series, ArrayCount(GameState->Grass));
+			int32 ChunkX = ChunkP->ChunkX + ChunkOffsetX;
+			int32 ChunkY = ChunkP->ChunkY + ChunkOffsetY;
+			random_series Series = RandomSeed(183 * ChunkX + 843 * ChunkY + 453 * ChunkP->ChunkZ);
+			v2 Center = 0.5f*V2(Width, Height) + V2(ChunkOffsetX * Width, -ChunkOffsetY * Height);
+			for(uint32 GrassIndex = 0; GrassIndex < 100; ++GrassIndex)
+			{
+				loaded_bitmap* Stamp;
+				if(RandomChoice(&Series, 2))
+				{
+					Stamp = GameState->Grass + RandomChoice(&Series, ArrayCount(GameState->Grass));
+				}
+				else
+				{
+					Stamp = GameState->Stone + RandomChoice(&Series, ArrayCount(GameState->Stone));
+				}
+				float Radius = 5.0f;
+				v2 BitmapCenter = 0.5f*V2i(Stamp->Width, Stamp->Height);
+				v2 Offset = {Width * RandomUnilateral(&Series), Height * RandomUnilateral(&Series)};
+				v2 Pos = Center + Offset - BitmapCenter;
+				RenderBitMap(&Bitmap, Stamp, Pos.X, Pos.Y);
+			}
 		}
-		else
-		{
-			Stamp = GameState->Stone + RandomChoice(&Series, ArrayCount(GameState->Stone));
-		}
-		float Radius = 5.0f;
-		v2 BitmapCenter = 0.5f*V2i(Stamp->Width, Stamp->Height);
-		v2 Offset = {Width * RandomUnilateral(&Series), Height * RandomUnilateral(&Series)};
-		v2 Pos = Offset - BitmapCenter;
-		RenderBitMap(&Bitmap, Stamp, Pos.X, Pos.Y);
 	}
-	for(uint32 GrassIndex = 0; GrassIndex < 100; ++GrassIndex)
+
+	for(int32 ChunkOffsetX = -1; ChunkOffsetX <= 1; ++ChunkOffsetX)
 	{
-		loaded_bitmap* Stamp = GameState->Tuft + RandomChoice(&Series, ArrayCount(GameState->Tuft));
-		float Radius = 5.0f;
-		v2 BitmapCenter = 0.5f*V2i(Stamp->Width, Stamp->Height);
-		v2 Offset = {Width * RandomUnilateral(&Series), Height * RandomUnilateral(&Series)};
-		v2 Pos = Offset - BitmapCenter;
-		RenderBitMap(&Bitmap, Stamp, Pos.X, Pos.Y);
+		for(int32 ChunkOffsetY = -1; ChunkOffsetY <= 1; ++ChunkOffsetY)
+		{
+			int32 ChunkX = ChunkP->ChunkX + ChunkOffsetX;
+			int32 ChunkY = ChunkP->ChunkY + ChunkOffsetY;
+			random_series Series = RandomSeed(183 * ChunkX + 843 * ChunkY + 453 * ChunkP->ChunkZ);
+			v2 Center = 0.5f*V2(Width, Height) + V2(ChunkOffsetX * Width, -ChunkOffsetY * Height);
+			for(uint32 GrassIndex = 0; GrassIndex < 100; ++GrassIndex)
+			{
+				loaded_bitmap* Stamp = GameState->Tuft + RandomChoice(&Series, ArrayCount(GameState->Tuft));
+				float Radius = 5.0f;
+				v2 BitmapCenter = 0.5f*V2i(Stamp->Width, Stamp->Height);
+				v2 Offset = {Width * RandomUnilateral(&Series), Height * RandomUnilateral(&Series)};
+				v2 Pos = Center + Offset - BitmapCenter;
+				RenderBitMap(&Bitmap, Stamp, Pos.X, Pos.Y);
+			}
+		}
 	}
 }
 
@@ -810,7 +829,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 	{
 		InitializeArena (&TransientState->TransientArena, Memory->TransientStorageSize - sizeof(transient_state), (uint8 *)Memory->TransientStorage + sizeof(transient_state));
 		
-		TransientState->GroundBufferCount = 128;
+		TransientState->GroundBufferCount = 32;
 		TransientState->GroundBuffers = PushArray(&TransientState->TransientArena, TransientState->GroundBufferCount, ground_buffer);
 		for(uint32 GroundBufferIndex = 0; GroundBufferIndex < TransientState->GroundBufferCount; ++GroundBufferIndex)
 		{
@@ -822,6 +841,16 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 		
 		TransientState->IsInitialized = true;
 	}
+
+	if(Input->ExecutableReloaded)
+	{
+		for(uint32 GroundBufferIndex = 0; GroundBufferIndex < TransientState->GroundBufferCount; ++GroundBufferIndex)
+		{
+			ground_buffer* GroundBuffer = TransientState->GroundBuffers + GroundBufferIndex;
+			GroundBuffer->Pos = NullPosition();
+		}
+	}
+	
 	world *World = GameState->World;
 	// Tile width and Height
 	float MeterToPixels = GameState->MetersToPixels;
@@ -910,6 +939,20 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 	rectangle3 CameraBoundsInMeters = RectCenterDim(V3(0,0,0), V3(ScreenWidthInMeters, ScreenHeightInMeters, 0));
 	
 	v2 ScreenCenter = V2(0.5f * (float)RenderBuffer->Width, 0.5f * (float)RenderBuffer->Height);
+	
+	for(uint32 GroundBufferIndex = 0; GroundBufferIndex < TransientState->GroundBufferCount; ++GroundBufferIndex)
+	{
+		ground_buffer* GroundBuffer = TransientState->GroundBuffers + GroundBufferIndex;
+		if(IsWorldPosValid(GroundBuffer->Pos))
+		{
+			loaded_bitmap Bitmap = TransientState->GroundBitmapTemplate;
+			Bitmap.Memory = GroundBuffer->Memory;
+			v3 Delta =  GameState->MetersToPixels * Subtract(GameState->World, &GroundBuffer->Pos, &GameState->CameraP);
+			v2 Ground = V2(ScreenCenter.X + Delta.X - 0.5f * (float)Bitmap.Width, ScreenCenter.Y - Delta.Y - 0.5f * (float)Bitmap.Height);
+			RenderBitMap (RenderBuffer, &Bitmap, Ground.X, Ground.Y);
+		}
+	}
+	
 	{
 		world_position MinChunkP = MapIntoChunkSpace(World, GameState->CameraP, GetMinCorner(CameraBoundsInMeters));
 		world_position MaxChunkP = MapIntoChunkSpace(World, GameState->CameraP, GetMaxCorner(CameraBoundsInMeters));
@@ -928,24 +971,35 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 						v2 ScreenPos = V2(ScreenCenter.X + MeterToPixels * RelativePos.X, ScreenCenter.Y - MeterToPixels * RelativePos.Y);
 						v2 ScreenDim = GameState->MetersToPixels * World->ChunkDimInMeters.XY;
 
-						bool Found = false;
-						ground_buffer* EmptyBuffer = 0;
+						float FurthesetBufferLengthSq = 0;
+						ground_buffer* FurthesetBuffer = 0;
 						for (uint32 GroundBufferIndex = 0; GroundBufferIndex < TransientState->GroundBufferCount; ++GroundBufferIndex)
 						{
 							ground_buffer* GroundBuffer = TransientState->GroundBuffers + GroundBufferIndex;
 							if(AreInSameChunk(GameState->World, &GroundBuffer->Pos, &ChunkCenterPos))
 							{
-								Found = true;
+								FurthesetBuffer = 0;
 								break;
 							}
-							else if(!IsWorldPosValid(GroundBuffer->Pos))
+							else if(IsWorldPosValid(GroundBuffer->Pos))
 							{
-								EmptyBuffer = GroundBuffer;
+								RelativePos = Subtract(GameState->World, &GroundBuffer->Pos, &GameState->CameraP);
+								float BufferLengthSq = LengthSq(RelativePos.XY);
+								if(FurthesetBufferLengthSq < BufferLengthSq)
+								{
+									FurthesetBufferLengthSq = BufferLengthSq;
+									FurthesetBuffer = GroundBuffer;
+								}
+							}
+							else
+							{
+								FurthesetBufferLengthSq = FLOATMAX;
+								FurthesetBuffer = GroundBuffer;
 							}
 						}
-						if(!Found && EmptyBuffer)
+						if(FurthesetBuffer)
 						{
-							FillGroundChunk(TransientState, GameState, EmptyBuffer, &ChunkCenterPos);
+							FillGroundChunk(TransientState, GameState, FurthesetBuffer, &ChunkCenterPos);
 						}
 						RenderRectOutline(RenderBuffer, ScreenPos - 0.5f * ScreenDim, ScreenPos + 0.5f * ScreenDim, V3(1.0f, 1.0f, 0.0f));
 					}
@@ -959,19 +1013,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 	
 	temporary_memory SimMemory = BeginTemporaryMemory(&TransientState->TransientArena);
 	sim_region* SimRegion = BeginSim(&TransientState->TransientArena, GameState, GameState->World, GameState->CameraP, SimBounds, Input->deltaTime);
-	
-	for(uint32 GroundBufferIndex = 0; GroundBufferIndex < TransientState->GroundBufferCount; ++GroundBufferIndex)
-	{
-		ground_buffer* GroundBuffer = TransientState->GroundBuffers + GroundBufferIndex;
-		if(IsWorldPosValid(GroundBuffer->Pos))
-		{
-			loaded_bitmap Bitmap = TransientState->GroundBitmapTemplate;
-			Bitmap.Memory = GroundBuffer->Memory;
-			v3 Delta =  GameState->MetersToPixels * Subtract(GameState->World, &GroundBuffer->Pos, &GameState->CameraP);
-			v2 Ground = V2(ScreenCenter.X + Delta.X - 0.5f * (float)Bitmap.Width, ScreenCenter.Y - Delta.Y - 0.5f * (float)Bitmap.Height);
-			RenderBitMap (RenderBuffer, &Bitmap, Ground.X, Ground.Y);
-		}
-	}
 	
 	entity_visible_piece_group PieceGroup;
 	PieceGroup.GameState = GameState;
