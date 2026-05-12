@@ -244,6 +244,8 @@ inline low_entity* GetLowEntity(game_state* GameState, uint32 Index)
 
 static void UpdateSound(game_state *GameState, game_sound_buffer *SoundBuffer);
 
+internal void RenderBitMap(loaded_bitmap *Buffer, loaded_bitmap *Bitmap, float realX, float realY, float CAlpha = 1.0f);
+internal void RenderRectangle(loaded_bitmap* Buffer, v2 vMin, v2 vMax, float R, float G, float B);
 internal void AddCollisionRule (game_state* GameState, uint32 StorageIndexA, uint32 StorageIndexB, bool ShouldCollide/*pairwise_collision_rule_flag Flag*/);
 internal void ClearCollisionRule(game_state* GameState, uint32 StorageIndex);
 #define RAAVANAN_H

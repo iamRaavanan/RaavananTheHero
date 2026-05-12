@@ -54,102 +54,6 @@ internal void RenderGradiant(game_offscreen_buffer *Buffer, int xOffset, int yOf
 	}
 }
 
-internal void RenderRectangle(loaded_bitmap* Buffer, v2 vMin, v2 vMax, float R, float G, float B)
-{
-	int32 MinX = RoundFloatToInt32(vMin.X);
-	int32 MinY = RoundFloatToInt32(vMin.Y);
-	int32 MaxX = RoundFloatToInt32(vMax.X);
-	int32 MaxY = RoundFloatToInt32(vMax.Y);
-	
-	MinX = (MinX < 0) ? 0 : MinX;
-	MinY = (MinY < 0) ? 0 : MinY;
-	MaxX = (MaxX > Buffer->Width) ? Buffer->Width : MaxX;
-	MaxY = (MaxY > Buffer->Height) ? Buffer->Height : MaxY;
-
-	uint32 Color = ((RoundFloatToUInt32(R * 255.0f) << 16 | RoundFloatToUInt32(G * 255.0f) << 8 | RoundFloatToUInt32(B * 255.0f)));
-	uint8 *Row = ((uint8 *)Buffer->Memory + MinX * BITMAP_BYTES_PER_PIXEL + MinY * Buffer->Pitch);
-	
-	for (int y = MinY; y < MaxY; ++y)
-	{
-		uint32 *Pixel = (uint32 *)Row;
-		for (int x = MinX; x < MaxX; ++x)
-		{
-			*Pixel++ = Color;
-		}
-		Row += Buffer->Pitch;
-	}
-}
-
-internal void RenderRectOutline(loaded_bitmap* Buffer, v2 Min, v2 Max, v3 Color, float T = 2.0f)
-{
-	float Thickness = 0.1f;
-	RenderRectangle(Buffer, V2(Min.X - T, Min.Y - T), V2(Max.X + T, Min.Y + T), Color.R, Color.G, Color.B);
-	RenderRectangle(Buffer, V2(Min.X - T, Max.Y - T), V2(Max.X + T, Max.Y + T), Color.R, Color.G, Color.B);
-
-	RenderRectangle(Buffer, V2(Min.X - T, Min.Y - T), V2(Min.X + T, Max.Y + T), Color.R, Color.G, Color.B);
-	RenderRectangle(Buffer, V2(Max.X - T, Min.Y - T), V2(Max.X + T, Max.Y + T), Color.R, Color.G, Color.B);
-}
-
-internal void RenderBitMap(loaded_bitmap *Buffer, loaded_bitmap *Bitmap, float realX, float realY, float CAlpha = 1.0f)
-{
-	int32 MinX = RoundFloatToInt32(realX);
-	int32 MinY = RoundFloatToInt32(realY);
-	int32 MaxX = MinX + Bitmap->Width;
-	int32 MaxY = MinY + Bitmap->Height;
-	
-	int32 SrcOffsetX = 0;
-	if (MinX < 0)
-	{
-		SrcOffsetX = -MinX;
-		MinX = 0;
-	}
-	int32 SrcOffsetY = 0;
-	if (MinY < 0)
-	{
-		SrcOffsetY = -MinY;
-		MinY = 0;
-	}
-
-	MaxX = (MaxX > Buffer->Width) ? Buffer->Width : MaxX;
-	MaxY = (MaxY > Buffer->Height) ? Buffer->Height : MaxY;
-
-	uint8 *SrcRow = (uint8 *)Bitmap->Memory + SrcOffsetY * Bitmap->Pitch + BITMAP_BYTES_PER_PIXEL * SrcOffsetX; 
-	uint8 *DstRow = ((uint8 *)Buffer->Memory + MinX * BITMAP_BYTES_PER_PIXEL + MinY * Buffer->Pitch);
-	for (int y = MinY; y < MaxY; ++y)
-	{
-		uint32 *Dst = (uint32 *)DstRow;
-		uint32 *Src = (uint32 *)SrcRow;
-		for (int x = MinX; x < MaxX; ++x)
-		{
-			float SA = (float)((*Src >> 24) & 0xFF);
-			float RSA = (SA / 255.0f) * CAlpha;
-			float SR = CAlpha * (float)((*Src >> 16) & 0xFF);
-			float SG = CAlpha * (float)((*Src >> 8) & 0xFF);
-			float SB = CAlpha * (float)((*Src >> 0) & 0xFF);
-			
-			float DA = (float)((*Dst >> 24) & 0xFF);
-			float DR = (float)((*Dst >> 16) & 0xFF);
-			float DG = (float)((*Dst >> 8) & 0xFF);
-			float DB = (float)((*Dst >> 0) & 0xFF);
-			float RDA = (DA / 255.0f);
-
-			float OneMinusRSA = (1.0f - RSA);
-			float A = 255.0f * (RSA + RDA - RSA* RDA);
-			float R = OneMinusRSA * DR + SR;
-			float G = OneMinusRSA * DG + SG;
-			float B = OneMinusRSA * DB + SB;
-
-			*Dst = (((uint32)(A + 0.5f) << 24) |
-					((uint32)(R + 0.5f) << 16) |
-					((uint32)(G + 0.5f) << 8) |
-					((uint32)(B + 0.5f) << 0));
-			++Dst;
-			++Src;
-		}
-		DstRow += Buffer->Pitch;
-		SrcRow += Bitmap->Pitch;
-	}
-}
 //#if RAAVANAN_INTERNAL
 #pragma pack(push, 1)
 struct bitmap_header
@@ -1141,28 +1045,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 	v2 PlayerLeftTop = {EntityGroundPointX - 0.5f * MeterToPixels * LowEntity->Sim.Width, EntityGroundPointY - 0.5f * MeterToPixels * LowEntity->Sim.Height};
 	v2 EntiryWidthHeight = {LowEntity->Sim.Width, LowEntity->Sim.Height};
 #endif
-	for(uint32 BaseAddress = 0; BaseAddress < RenderGroup->PushBufferSize; )
-	{
-		entity_visible_piece* Piece = (entity_visible_piece *)(RenderGroup->PushBufferBase + BaseAddress);
-		BaseAddress += sizeof(entity_visible_piece);
-		v3 EntityBaseP = Piece->Basis->Pos;
-		float ZFudge = (1.0f + 0.1f * (EntityBaseP.Z + Piece->OffsetZ));
-		float EntityGroundPointX = ScreenCenter.X + MeterToPixels * ZFudge * EntityBaseP.X;
-		float EntityGroundPointY = ScreenCenter.Y - MeterToPixels * ZFudge * EntityBaseP.Y;
-		float EntityZ = -MeterToPixels * EntityBaseP.Z;
-		
-		v2 Center = v2{EntityGroundPointX + Piece->Offset.X,
-						EntityGroundPointY + Piece->Offset.Y + Piece->EntityZCofficient * EntityZ};
-		if(Piece->Bitmap)
-		{
-			RenderBitMap(RenderBuffer, Piece->Bitmap, Center.X, Center.Y, Piece->A);
-		}
-		else
-		{
-			v2 HalfDim = MeterToPixels*0.5f * Piece->Dim;
-			RenderRectangle(RenderBuffer, Center - HalfDim, Center + HalfDim, Piece->R, Piece->G, Piece->B);
-		}
-	}
+	RenderGroupToOutput(RenderGroup, RenderBuffer);
+
 	EndSim(SimRegion, GameState);
 	EndTemporaryMemory(SimMemory);
 	EndTemporaryMemory(RenderMemory);
