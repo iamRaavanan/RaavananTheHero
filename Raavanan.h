@@ -68,6 +68,7 @@ inline void InitializeArena (memory_arena *MemoryArena, memory_index Size, void*
 
 #define PushStruct(MemoryArena, type) (type *)PushSize_(MemoryArena, sizeof(type))
 #define PushArray(MemoryArena, Count, type) (type *)PushSize_(MemoryArena, (Count * sizeof(type)))
+#define PushSize(MemoryArena, Size) PushSize_(MemoryArena, Size)
 #define ZeroStruct(Instance) ZeroSize(sizeof(Instance), &(Instance))
 
 inline void *PushSize_(memory_arena *MemoryArena, size_t Size)
@@ -164,7 +165,7 @@ struct pairwise_collision_rule
 struct ground_buffer
 {
 	world_position Pos;
-	void* Memory;
+	loaded_bitmap Bitmap;
 };
 
 struct game_state
@@ -228,25 +229,7 @@ struct transient_state
 	bool IsInitialized;
 	memory_arena TransientArena;
 	uint32 GroundBufferCount;
-	loaded_bitmap GroundBitmapTemplate;
 	ground_buffer* GroundBuffers;
-};
-
-struct entity_visible_piece
-{
-	loaded_bitmap* Bitmap;
-	v2 Offset;
-	float OffsetZ;
-	float EntityZCofficient;
-	float R, G, B, A;
-	v2 Dim;
-};
-
-struct entity_visible_piece_group
-{
-	uint32 PieceCount;
-	entity_visible_piece Pieces[8];
-	game_state* GameState;
 };
 
 inline low_entity* GetLowEntity(game_state* GameState, uint32 Index)
